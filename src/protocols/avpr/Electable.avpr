@@ -1,0 +1,86 @@
+{
+	"namespace":"protocols.avro",
+	"protocol":"Electable",
+	"messages":{
+		"_sync":{
+			"request":[{"name":"Clients", "type":{"type":"map", "values": {"type":"array","items":"int"}}}, {"name":"Users", "type": {"type":"map", "values":{"type":"map", "values":"boolean"}}}, {"name":"addresses","type":{"type":"map","values":"string"}},{"name":"savedLights","type":{"type":"array","items":"int"}}],
+			"response":"null"
+		},
+		"election":{
+			"request":[{"name":"OwnID","type":"int"}],
+			"response":"boolean"
+		},
+		"elected":{
+			"request":[{"name":"OwnID","type":"int"}, {"name":"NextID","type":"int"}],
+			"response":"boolean"
+		},
+		"ConnectUser":{
+			"request":[{"name":"username","type":"string"},{"name":"IP","type":"string"}],
+			"response":"int"
+		},
+		"ConnectLight":{
+			"request":[{"name":"LightID","type":"int"},{"name":"IP","type":"string"}],
+			"response":"int"
+		},
+		"ConnectThermostat":{
+			"request":[{"name":"SensorID","type":"int"},{"name":"IP","type":"string"}],
+			"response":"int"
+		},
+		"ConnectFridge":{
+			"request":[{"name":"FridgeID","type":"int"},{"name":"IP","type":"string"}],
+			"response":"int"
+		},
+		"Switch":{
+			"request":[{"name":"lightID","type":"int"}],
+			"response":"boolean"
+		},
+		"GetClients":{
+			"request":[],
+			"response": {"type": "map", "values": {"type":"array","items":"int"}}
+		},
+		"GetLights":{
+			"request":[],
+			"response":{"type":"map","values": "boolean"}
+		},
+		"GetServers":{
+			"request":[],
+			"response":{"type": "map","values": "boolean"}
+		},
+		"GetUsers":{
+			"request":[],
+			"response":{"type":"map", "values": "boolean"}
+		},
+		"LeaveHouse":{
+			"request":[{"name":"userID","type":"int"}],
+			"response":"null"
+		},
+		"GetFridges":{
+			"request":[],
+			"response":{"type":"map","values":{"type":"array","items":"string"}}
+		},
+		"ConnectUserToFridge":{
+			"request":[{"name" : "username", "type":"int"},{"name":"fridgeID", "type":"int"}],
+			"response":"string"
+		},
+		"FridgeIsEmpty":{
+			"request":[{"name":"fridgeID", "type":"int"}],
+			"response":"null"
+		},
+		"IsAlive":{
+			"request":[{"name":"IPaddr","type":"string"},{"name":"ID","type":"int"}],
+			"response":"boolean"
+		},
+		"UpdateTemperature":{
+			"request":[{"name":"temperature", "type":"double"}],
+			"response":"null"
+		},
+		"GetTemperature":{
+			"request":[],
+			"response":"double"
+		},
+		"GetTemperatureHistory":{
+			"request":[],
+			"response":{"type":"array","items":"double"}
+		}
+	}	
+}

@@ -1,0 +1,14 @@
+{
+	"namespace":"protocols.avro",
+	"protocol":"Thermostat",
+	"messages":{
+		"GetTemperature":{
+			"request":[],
+			"response":"double"
+		},
+		"IsAlive":{
+			"request":[{"name":"IPaddr","type":"string"},{"name":"ID","type":"int"}],
+			"response":"boolean"
+		}
+	}
+}

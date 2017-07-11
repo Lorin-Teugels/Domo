@@ -1,0 +1,18 @@
+{
+	"namespace":"protocols.avro",
+	"protocol":"Light",
+	"messages":{
+		"LightSwitch":{
+			"request":[],
+			"response":"null"
+		},
+		"GetLightState":{
+			"request":[],
+			"response":"boolean"
+		},
+		"IsAlive":{
+			"request":[],
+			"response":"boolean"
+		}
+	}
+}

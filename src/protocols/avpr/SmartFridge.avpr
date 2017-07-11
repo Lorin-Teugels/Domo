@@ -1,0 +1,46 @@
+{
+	"namespace":"protocols.avro",
+	"protocol":"SmartFridge",
+	"messages":{
+		"_sync":{
+			"request":[{"name":"Clients", "type":{"type":"map", "values": {"type":"array","items":"int"}}}, {"name":"Users", "type": {"type":"map", "values":{"type":"map", "values":"boolean"}}}, {"name":"addresses","type":{"type":"map","values":"string"}},{"name":"savedLights","type":{"type":"array","items":"int"}}],
+			"response":"null"
+		},
+		"election":{
+			"request":[{"name":"OwnID","type":"int"}],
+			"response":"boolean"
+		},
+		"elected":{
+			"request":[{"name":"OwnID","type":"int"}, {"name":"NextID","type":"int"}],
+			"response":"boolean"
+		},
+		"GetContents":{
+			"request":[],
+			"response": {"type": "array", "items": "string"}
+		},
+		"AddItem":{
+			"request":[{"name":"UserID", "type":"int"}, {"name":"item","type":"string"}],
+			"response":"null"
+		},
+		"RemoveItem":{
+			"request":[{"name":"UserID", "type":"int"}, {"name":"item","type":"string"}],
+			"response":"null"
+		},
+		"ConnectToClient":{
+			"request":[{"name":"ClientID","type":"int"}],
+			"response":"boolean"
+		},
+		"IsAlive":{
+			"request":[{"name":"IPaddr","type":"string"},{"name":"ID","type":"int"}],
+			"response":"boolean"
+		},
+		"OpenFridge":{
+			"request":[{"name":"ClientID","type":"int"},{"name":"IP","type":"string"}],
+			"response":"boolean"
+		},
+		"CloseFridge":{
+			"request":[{"name":"ClientID","type":"int"}],
+			"response":"null"
+		}
+	}	
+}
