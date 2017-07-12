@@ -6,3 +6,4 @@ java -jar $TOOLS compile protocol avpr/User.avpr 		../
 java -jar $TOOLS compile protocol avpr/Electable.avpr		../
 java -jar $TOOLS compile protocol avpr/Thermostat.avpr 		../
 java -jar $TOOLS compile protocol avpr/Light.avpr 		../
+

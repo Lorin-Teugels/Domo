@@ -10,6 +10,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Date;
 
 import org.apache.avro.AvroRemoteException;
 import org.apache.avro.ipc.SaslSocketServer;
@@ -22,6 +23,7 @@ import org.apache.avro.ipc.specific.SpecificResponder;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.InetSocketAddress;
+import java.text.DecimalFormat;
 import java.util.AbstractMap.SimpleEntry;
 
 import protocols.avro.*;
@@ -29,6 +31,7 @@ import domotics.NetAddress;
 
 public abstract class ElectableClient extends Client implements Electable, Runnable {
 	private Map<String,Set<Integer> > clients = new ConcurrentHashMap<String,Set<Integer> >();
+	private Object clientsLock = new Object();
 	private Map<Integer,SimpleEntry<CharSequence,Boolean>> users = new ConcurrentHashMap<Integer,SimpleEntry<CharSequence,Boolean>>();
 	private Map<CharSequence, CharSequence> addressList = new ConcurrentHashMap<CharSequence,CharSequence>();
 	private List<Integer> SavedLights = new Vector<Integer>();
@@ -52,6 +55,8 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 	private Object ElectionLock = new Object(); 
 	private boolean ElectionBusy = false;
 	public List<Double> temperatureHistory = new ArrayList<Double>();
+	private double ThermostatCounter = 0;
+	private Thread TimeKeeper = null;
 
 	public void stopserver(){
 		System.out.println("This is not a server anymore");
@@ -522,6 +527,9 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		pingingobject = new pinger(this);
 		PingingEveryone = new Thread(pingingobject);
 		PingingEveryone.start();
+		TimerCounter timerObj = new TimerCounter(this);
+		TimeKeeper = new Thread(timerObj);
+		TimeKeeper.start();
 		java.util.Date now = new java.util.Date();
 		synctimertask = new SyncTimerTask();
 		syncTimer.schedule(synctimertask, now , countdown);
@@ -1050,5 +1058,149 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		
 		return temperatureHistory;
 	}
+	public void CompareTime(){
+		/*Parameters*/
+		double epsilon = 2;
+		double RTTmax = 0.8;
+		/*code*/
+		Vector< Double > counterlist =  new Vector<Double>();
+		boolean connected = false;
+		ClientCopy copy = this.Copy(); 
+		if(copy.clients.get("thermostat").size() != 0){
+			for(Integer key: copy.clients.get("thermostat")){
+				NetAddress IP = new NetAddress(key,(String)copy.addressList.get(key.toString()));
+				try{
+					Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
+					Thermostat proxy = (Thermostat) SpecificRequestor.getClient(Thermostat.class, client);
+					long millisec;
+					long millisec2;
+					Date _date = new Date();
+					millisec = _date.getTime();
+					double compareTime = proxy.GetTime();
+					millisec2 = _date.getTime();
+					long RTTmil = millisec2-millisec;
+					double RTT = RTTmil/2;
+					if(RTTmil/1000 > RTTmax)
+						continue;
+					compareTime += RTT;
+					counterlist.add(new Double(compareTime));
+					client.close();
+					connected = true;
+				}
+				catch(IOException e){
+					continue;
+				}
+			}
+		}
+		
+		if(! connected){
+			return;
+		}
+		double average = ThermostatCounter;
+		average = average/(counterlist.size()+1);
+		double Passedctr = 1; //amount of times the average was counted in.
+		for(int i =0; i < counterlist.size(); i++){
+			if(Math.abs((average*(counterlist.size()+1)) - counterlist.elementAt(i)) > epsilon){
+				continue;
+			}
+			Passedctr ++;
+			average += counterlist.elementAt(i)/(counterlist.size()+1);
+		}
+		average = average * ((counterlist.size()+1)/Passedctr);
+		connected = false;
+		int indexctr = -1;
+		if(copy.clients.get("thermostat").size() > 0){
+			for(Integer key: copy.clients.get("thermostat")){
+				indexctr += 1;
+				NetAddress IP = new NetAddress(key,(String)copy.addressList.get(key.toString()));
+				try{
+					Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
+					Thermostat proxy = (Thermostat) SpecificRequestor.getClient(Thermostat.class, client);
+					double adjustment = average - counterlist.elementAt(indexctr);
+					proxy.SetTime(adjustment);				
+					client.close();
+					connected = true;
+				}
+				catch(IOException e){
+					continue;
+				}
+				
+			}
+		}
+		ThermostatCounter = average;
 
+
+	}
+	public class ClientCopy{
+		Map<String,Set<Integer> > clients;
+		Map<CharSequence, CharSequence> addressList;
+		
+		/*ClientCopy(Map<String,Set<Integer> > _clients, Map<CharSequence, CharSequence> _addressList){
+			clients = _clients;
+			addressList = _addressList;
+		}*/
+		
+	}
+	ClientCopy Copy(){
+		
+		ClientCopy copy = new ClientCopy();
+		copy.clients = new HashMap<String, Set<Integer> >();
+		copy.addressList = new HashMap<CharSequence, CharSequence >();
+		if(this.clients.get("thermostat").size() > 0){
+
+			synchronized (clientsLock){
+
+				for(String key: this.clients.keySet()){
+					Set<Integer> ipList = new HashSet<Integer>();
+					for(int ip: this.clients.get(key)){
+						ipList.add(ip);
+					}
+				
+					copy.clients.put(key, ipList);
+
+				}
+				for(CharSequence key: this.addressList.keySet()){
+
+					copy.addressList.put(key, this.addressList.get(key));
+				}
+				
+			}
+			return copy;
+		}
+
+		copy.addressList = this.addressList;
+		copy.clients = this.clients;
+
+		return copy;
+	}
+	
+	private class TimerCounter implements Runnable{
+		ElectableClient owner;
+		boolean stop = false;
+		int timesCounter = 5;
+		public TimerCounter(ElectableClient _owner){
+			owner = _owner;
+		}
+		
+		@Override
+		public void run() {
+			//System.out.println("RUNNING TIMER");
+
+			while (! stop){
+				try{
+					
+					for(int n = 0; n < timesCounter; n++){
+						Thread.sleep(1000);
+						ThermostatCounter += 1;
+	
+					}
+					owner.CompareTime();
+				}
+				catch(InterruptedException e){}
+				
+			}
+			
+		}
+	
+	}
 }

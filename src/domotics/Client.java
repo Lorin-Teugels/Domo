@@ -2,7 +2,7 @@ package domotics;
 
 import domotics.NetAddress;
 
-public abstract class Client {
+public abstract class Client{
 
 	public abstract int getID();
 	
@@ -48,4 +48,6 @@ public abstract class Client {
 		//System.err.println("MyAddr: " + MyAddr);
 		return returnval;
 	}
+	
+
 }

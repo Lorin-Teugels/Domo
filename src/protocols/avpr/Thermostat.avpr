@@ -9,6 +9,14 @@
 		"IsAlive":{
 			"request":[{"name":"IPaddr","type":"string"},{"name":"ID","type":"int"}],
 			"response":"boolean"
+		},
+		"GetTime":{
+			"request":[],
+			"response":"double"
+		},
+		"SetTime":{
+			"request":[{"name":"Time","type":"double"}],
+			"response":"null"
 		}
 	}
 }

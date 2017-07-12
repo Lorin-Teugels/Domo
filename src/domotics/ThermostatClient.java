@@ -21,6 +21,8 @@ import domotics.NetAddress;
 	private Integer serverID;
 	private String serverIP;
 	private Thread PingingServer;
+	private double counter;
+	private double drift;
 	private Random rand = new Random();
 	
 	public ThermostatClient(NetAddress ServerAddr, NetAddress MyAddr){
@@ -28,6 +30,8 @@ import domotics.NetAddress;
 		this.serverID = ServerAddr.getPort();
 		this.serverIP = ServerAddr.getIPStr();
 		this.PingingServer = new Thread(new clientpinger(this));
+		this.counter = 0;
+		this.drift = rand.nextDouble()/4; //min = 0; max = .25
 		
 	}
 
@@ -54,7 +58,8 @@ import domotics.NetAddress;
 		ThermostatClient ptr;
 		boolean stop  = false;
 		long sleeper = 3000;
-
+		long countertime = 1000;
+		long timesCounter = sleeper/countertime;
 		
 		public clientpinger(ThermostatClient owner){
 			ptr = owner;
@@ -68,7 +73,11 @@ import domotics.NetAddress;
 
 				try{
 					
-				Thread.sleep(sleeper);
+					for(int n = 0; n < timesCounter; n++){
+						Thread.sleep(countertime);
+						counter += 1 + drift;
+	
+					}
 				
 				}
 				
@@ -86,6 +95,7 @@ import domotics.NetAddress;
 					}
 					DecimalFormat df = new DecimalFormat("#.##");
 					System.out.println(df.format(temperature));
+					System.out.println(df.format(counter));
 					//log("temperature: " + temperature);
 					proxy.UpdateTemperature(temperature);
 				}
@@ -163,5 +173,16 @@ import domotics.NetAddress;
 	@Override
 	public Class getClientClass() {
 		return Thermostat.class;
+	}
+	
+	@Override
+	public Void SetTime(double Time){
+		counter += Time; 
+		return null;
+	}
+	@Override
+	public double GetTime(){
+		
+		return counter;
 	}
 }

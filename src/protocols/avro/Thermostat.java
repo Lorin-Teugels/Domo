@@ -8,14 +8,18 @@ package protocols.avro;
 @SuppressWarnings("all")
 @org.apache.avro.specific.AvroGenerated
 public interface Thermostat {
-  public static final org.apache.avro.Protocol PROTOCOL = org.apache.avro.Protocol.parse("{\"protocol\":\"Thermostat\",\"namespace\":\"protocols.avro\",\"types\":[],\"messages\":{\"GetTemperature\":{\"request\":[],\"response\":\"double\"},\"IsAlive\":{\"request\":[{\"name\":\"IPaddr\",\"type\":\"string\"},{\"name\":\"ID\",\"type\":\"int\"}],\"response\":\"boolean\"}}}");
+  public static final org.apache.avro.Protocol PROTOCOL = org.apache.avro.Protocol.parse("{\"protocol\":\"Thermostat\",\"namespace\":\"protocols.avro\",\"types\":[],\"messages\":{\"GetTemperature\":{\"request\":[],\"response\":\"double\"},\"IsAlive\":{\"request\":[{\"name\":\"IPaddr\",\"type\":\"string\"},{\"name\":\"ID\",\"type\":\"int\"}],\"response\":\"boolean\"},\"GetTime\":{\"request\":[],\"response\":\"double\"},\"SetTime\":{\"request\":[{\"name\":\"Time\",\"type\":\"double\"}],\"response\":\"null\"}}}");
   double GetTemperature() throws org.apache.avro.AvroRemoteException;
   boolean IsAlive(java.lang.CharSequence IPaddr, int ID) throws org.apache.avro.AvroRemoteException;
+  double GetTime() throws org.apache.avro.AvroRemoteException;
+  java.lang.Void SetTime(double Time) throws org.apache.avro.AvroRemoteException;
 
   @SuppressWarnings("all")
   public interface Callback extends Thermostat {
     public static final org.apache.avro.Protocol PROTOCOL = protocols.avro.Thermostat.PROTOCOL;
     void GetTemperature(org.apache.avro.ipc.Callback<java.lang.Double> callback) throws java.io.IOException;
     void IsAlive(java.lang.CharSequence IPaddr, int ID, org.apache.avro.ipc.Callback<java.lang.Boolean> callback) throws java.io.IOException;
+    void GetTime(org.apache.avro.ipc.Callback<java.lang.Double> callback) throws java.io.IOException;
+    void SetTime(double Time, org.apache.avro.ipc.Callback<java.lang.Void> callback) throws java.io.IOException;
   }
 }
