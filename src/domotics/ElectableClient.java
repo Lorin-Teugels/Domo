@@ -32,14 +32,14 @@ import domotics.NetAddress;
 public abstract class ElectableClient extends Client implements Electable, Runnable {
 	public static final long COUNTDOWN = 4000;
 	public static final long ELECTIONTIMEOUT = 6000;
-	
+	public static final int UPPERBOUND = 64*1024 + 1;
 	
 	private Map<String,Set<Integer> > clients = new ConcurrentHashMap<String,Set<Integer> >();
 	private Object clientsLock = new Object();
 	private Map<Integer,SimpleEntry<CharSequence,Boolean>> users = new ConcurrentHashMap<Integer,SimpleEntry<CharSequence,Boolean>>();
 	private Map<CharSequence, CharSequence> addressList = new ConcurrentHashMap<CharSequence,CharSequence>();
 	private List<Integer> SavedLights = new Vector<Integer>();
-	private int UPPERBOUND = 64*1024 + 1;
+
 	protected NetAddress SelfID = null;
 	private pinger pingingobject = null;
 	private Thread PingingEveryone = null;
@@ -181,12 +181,13 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		int nextInChain = UPPERBOUND;
 		
 		int min = UPPERBOUND;
+		String _tempkey = "";
 		for(String key: clients.keySet()){
 			for(Integer ID: clients.get(key)){
 				if(key.equalsIgnoreCase("fridges") || key.equalsIgnoreCase("users")){
 					if(ID < nextInChain && ID > OwnID){
 						nextInChain = ID;
-						
+						_tempkey = key;
 					}
 					if(ID<min){
 						min = ID;
@@ -241,6 +242,9 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			}
 			catch(IOException e){
 				log("exception during election: " + e);
+				//nextinchain removing <key, nextinchain> from clients
+				//TODO getbackhere
+				RemoveFromClients(_tempkey, nextInChain);
 			}
 			finally{
 				try {
@@ -1212,5 +1216,12 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			
 		}
 	
+	}
+	
+	void RemoveFromClients(String key, Integer ipaddr){
+		synchronized (clientsLock){
+			Set<Integer> RemoveTarget = this.clients.get(key);
+			RemoveTarget.remove(ipaddr);
+		}
 	}
 }
