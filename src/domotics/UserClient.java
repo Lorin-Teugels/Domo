@@ -110,7 +110,7 @@ public class UserClient extends ElectableClient implements User{
 
 		this.start();
 		try{
-			this.standby();
+			this.standby(COUNTDOWN);
 		} catch(Exception e){
 			
 		}

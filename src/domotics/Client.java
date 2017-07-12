@@ -8,7 +8,7 @@ public abstract class Client{
 	
 	public abstract String getName();
 	public void log(String s){
-		//System.err.println("[" + Thread.currentThread().getName() + "] " + this.getName() + " " + this.getID() + " says: " +s);
+		System.err.println("[" + Thread.currentThread().getName() + "] " + this.getName() + " " + this.getID() + " says: " +s);
 	}
 	public static class clientinfo{
 		public NetAddress serverAddr;

@@ -214,7 +214,7 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 		SmartFridgeClient fridge = new SmartFridgeClient(info.serverAddr, info.MyAddr);
 		fridge.start();
 		
-		fridge.standby();
+		fridge.standby(COUNTDOWN);
 		
 		while(true){
 			int input = 0;

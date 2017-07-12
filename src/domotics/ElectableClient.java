@@ -30,6 +30,10 @@ import protocols.avro.*;
 import domotics.NetAddress;
 
 public abstract class ElectableClient extends Client implements Electable, Runnable {
+	public static final long COUNTDOWN = 4000;
+	public static final long ELECTIONTIMEOUT = 6000;
+	
+	
 	private Map<String,Set<Integer> > clients = new ConcurrentHashMap<String,Set<Integer> >();
 	private Object clientsLock = new Object();
 	private Map<Integer,SimpleEntry<CharSequence,Boolean>> users = new ConcurrentHashMap<Integer,SimpleEntry<CharSequence,Boolean>>();
@@ -42,7 +46,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 	HashMap<Integer, pinginfo> PingMap = new HashMap<Integer, pinginfo>();
 	private Timer syncTimer = new Timer();
 	private SyncTimerTask synctimertask = new SyncTimerTask();
-	private final long countdown = 10000;
+
 	private Thread ServerThread = null;
 	private Timer deadservertimer = new Timer();
 	private ElectionTimerTask electiontimertask = new ElectionTimerTask();
@@ -58,6 +62,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 	private double ThermostatCounter = 0;
 	private Thread TimeKeeper = null;
 
+
 	public void stopserver(){
 		System.out.println("This is not a server anymore");
 		log("cancelling pinger");
@@ -67,7 +72,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		log("cancelling synchronizer");
 		synctimertask.cancel();
 		this.start();
-		this.standby();
+		this.standby(COUNTDOWN);
 	}
 	
 	public void stop(){
@@ -250,6 +255,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		
 		} finally{
 			log("LEAVE ELECTION");
+			//standby();
 		}
 		return true;
 	}
@@ -532,7 +538,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		TimeKeeper.start();
 		java.util.Date now = new java.util.Date();
 		synctimertask = new SyncTimerTask();
-		syncTimer.schedule(synctimertask, now , countdown);
+		syncTimer.schedule(synctimertask, now , COUNTDOWN);
 		
 		try{
 			server.join();
@@ -875,7 +881,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		ServerIP = IPaddr.toString();
 		electiontimertask.cancel();
 		electiontimertask = new ElectionTimerTask();
-		deadservertimer.schedule(electiontimertask, countdown);
+		deadservertimer.schedule(electiontimertask, COUNTDOWN);
 		log("Test electable lists: clients " + clients +  " users: " + users );
 		return true;
 	}
@@ -962,18 +968,22 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 	
 	//__________________________________________________________SmartFridge inherit_______________________________________________________________\\
 	public class ElectionTimerTask extends TimerTask{
-
+		
 		public void run(){
 			//robert chang yey
 			log("Server dead");
 			clients.remove("server");
 			election(0);
+			
+			standby(ELECTIONTIMEOUT);
 
 		}
 	}
 	
-	public void standby(){
-		this.deadservertimer.schedule(this.electiontimertask, this.countdown);
+	public void standby(long delay){
+		electiontimertask.cancel();
+		electiontimertask = new ElectionTimerTask();
+		this.deadservertimer.schedule(this.electiontimertask, delay);
 		log("Standby");
 	}
 	public void standDown(){
