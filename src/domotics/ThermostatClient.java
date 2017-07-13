@@ -36,6 +36,9 @@ import domotics.NetAddress;
 	}
 
 	public void run(NetAddress serverAddress){
+		/*
+		 * TODO stand-in server can not register new processes 
+		*/
 		NetAddress ID = this.getAddress();
 		try{
 			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(serverAddress.getIP(),serverAddress.getPort()));

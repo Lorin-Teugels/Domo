@@ -75,6 +75,7 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 		}
 	}
 	
+	
 	public class clientpinger implements Runnable{
 		SmartFridgeClient ptr;
 		boolean stop  = false;

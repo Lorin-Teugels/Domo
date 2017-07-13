@@ -1013,6 +1013,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		}
 			
 	}
+	@Override
 	public Void UpdateTemperature(double temp){
 		this.temperature = temp;
 		if(this.temperatureHistory.size() >=3){

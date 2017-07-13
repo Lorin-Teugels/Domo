@@ -461,6 +461,18 @@ public class UserClient extends ElectableClient implements User{
 		return null;
 	}
 	
+	@Command
+	public Void WAIT(){
+		log("Waiting");
+		try{
+			Thread.sleep(2000);
+		}
+		catch(InterruptedException e){
+			
+		}
+		return null;
+	}
+	
 	public static void main(String[] args){
 		System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "warn");
 		Integer ServerID = 6789;

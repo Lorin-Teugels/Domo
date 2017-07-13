@@ -3,7 +3,14 @@ package domotics;
 import domotics.NetAddress;
 
 public abstract class Client{
-
+	/*private static SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss.SSS");
+	static void _log(String s) {
+	    System.err.println(sdf.format(new Date()) + " " + s);
+	}
+	static synchronized void log(String s) {
+	    _log(s);
+	}
+	*/
 	public abstract int getID();
 	
 	public abstract String getName();
