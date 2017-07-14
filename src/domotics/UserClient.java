@@ -381,17 +381,25 @@ public class UserClient extends ElectableClient implements User{
 		CharSequence success = "";
 		try{
 			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerIP,ServerID));
+			log("######################################################pasSasl");
 			Electable proxy = (Electable) SpecificRequestor.getClient(Electable.class, client);
+			log("#######################################################pasrequestor");
 			success = proxy.ConnectUserToFridge(SelfID.getPort(), fridgeID);
+			log("###########################################################PassConnect");
 			client.close();
 		} catch(IOException e){
 			System.err.println("Error connecting to Fridge");
 			e.printStackTrace(System.err);
 		}
-		if (success==""){
+		CharSequence testsq = "";
+		if (success== testsq){
 			System.out.println("Could not open the fridge");
 		}
 		this.OpenFridgeID = new NetAddress(fridgeID,String.valueOf(success));
+		log("###########################SEEMS IFFY: " + String.valueOf(success));
+		log("#####################################################FridgeID: " + fridgeID);
+		log("#####################################################SelfID: " + SelfID.getPort());
+		log("#####################################################SUCCESS: " + success);
 		return null;
 	}
 	
@@ -412,6 +420,9 @@ public class UserClient extends ElectableClient implements User{
 				System.err.println("Error connecting to Fridge");
 				e.printStackTrace(System.err);
 			}
+			 catch(Exception e){
+				 log("UNCAUGHT EXCEPTION (Datum type?? plz be datum type..: " + e.getMessage());
+			 }
 		}
 		return null;
 	}

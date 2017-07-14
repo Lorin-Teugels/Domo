@@ -149,12 +149,18 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 	
 	public Void _sync(Map<CharSequence,List<Integer> > _clients,	Map<CharSequence,Map<CharSequence,Boolean>> _users, Map<CharSequence, CharSequence> _addresses,List<Integer> _lights){
 		log("in sync; clients: "+ _clients + " users: " + _users+" addresses:"+_addresses+" lights:"+_lights);
+		Map<CharSequence, CharSequence> quickCopy = new HashMap<CharSequence, CharSequence>();
+		for(CharSequence key : _addresses.keySet()){
+			quickCopy.put(key.toString(), _addresses.get(key));
+		}
+		
+
 		HashMap<CharSequence,List<Integer>> clientlist = new HashMap<>(_clients);
 		HashMap<CharSequence,Map<CharSequence,Boolean>> userlist = new HashMap<>(_users);
-		
+		clients.clear();
 		for(CharSequence key: clientlist.keySet()){
-			clients.put(key.toString(), new HashSet<>(clientlist.get(key)) );
-			
+			clients.put(String.valueOf(key), new HashSet<>(clientlist.get(key)) );
+
 		}
 		
 		for(CharSequence key: userlist.keySet()){
@@ -168,7 +174,13 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			SimpleEntry<CharSequence,Boolean> tempmap = new SimpleEntry<CharSequence,Boolean>(otherkey, bool);
 			users.put(newkey, tempmap);
 		}
-		addressList.putAll(_addresses);
+		log("####################################pre change addresses:  " + addressList);
+		log("|#######################################################################ADRESSLISTTEST!!!"+addressList.get("6790"));
+		//addressList.putAll(_addresses);
+		addressList = quickCopy;
+		log("|#######################################################################ADRESSLISTTEST!!!"+addressList.get("6790"));
+
+		log("####################################post change addresses:  " + addressList);
 		SavedLights = new Vector<Integer>(_lights);
 		return null;
 	}
@@ -333,7 +345,10 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			}
 			
 			log("syncing");
-			
+			Map<CharSequence, CharSequence> mapcopy = new HashMap<CharSequence, CharSequence>();
+			for(CharSequence key: addressList.keySet()){
+				mapcopy.put(key, addressList.get(key));
+			}
 			for(String key: clients.keySet()){
 				for(Integer ID: clients.get(key)){
 					Transceiver client = null;
@@ -348,13 +363,15 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 							log("syncing " + key + " " + ID);
 							client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
 							User proxyU = (User) SpecificRequestor.getClient(User.class, client);
-							proxyU._sync(clientlist, userlist,addressList,SavedLights);
+							log("FUUUUUUUUUUUUUUUUUUUUUCK: " + mapcopy.get("6790"));
+							log("FUUUUUUUUUUUUUUUUUUUUUCK: " + addressList.get("6790"));
+							proxyU._sync(clientlist, userlist,mapcopy,SavedLights);
 							break;
 						case "fridges":
 							log("syncing " + key + " " + ID);
 							client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
 							SmartFridge proxyF = (SmartFridge) SpecificRequestor.getClient(SmartFridge.class,client);
-							proxyF._sync(clientlist, userlist,addressList,SavedLights);
+							proxyF._sync(clientlist, userlist,mapcopy,SavedLights);
 							break;	
 						}
 					}
@@ -517,7 +534,8 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			return;
 		}
 		clients.get("server").add(Integer.valueOf(ID.getPort()));
-		addressList.put(SelfID.getPort().toString(), SelfID.getIPStr());
+		if(addressList.get(SelfID.getPort().toString()) == null)
+			addressList.put(SelfID.getPort().toString(), SelfID.getIPStr());
 		
 		while(true) {
 			try{
@@ -806,33 +824,48 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 	
 	@Override
 	public CharSequence ConnectUserToFridge(int userID, int fridgeID) throws AvroRemoteException {
+		log("######################INCONNECTUSER TO FRIDGE: User: " + userID + ",Fridge: " + fridgeID);
 		if(clients.get("fridges") == null){
+			log("####################################################################################DAFUQ");
 			return "";
 		}
 		Integer fridge = null;
 		for(Integer frID: clients.get("fridges")){
 			if(frID == fridgeID){
+				log("###########################################fridgeID: " + frID);
 				fridge = frID;
 			}
 		}
 		
 		if(fridge == null){
+			log("###########################################NULLFRIDGE???");
 			return "";
 		}
 		boolean success = false;
 		NetAddress IP = new NetAddress(fridge,(String)addressList.get(fridge.toString()));
 		if(IP.getIP() == null){
+			log("###########################################NULLIP?????");
 			return "";
 		}
 		try{
 			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
+			log("###########################################PASSASL");
 			SmartFridge proxy = (SmartFridge) SpecificRequestor.getClient(SmartFridge.class, client);
+			log("###########################################PASRequestor");
+			log("###########################################ARguments: user:" + userID + ", addresses: " + addressList );
+			log("###########################################valueOftest: " + String.valueOf(userID));
+			log("############################################get Test: " + String.valueOf(addressList.get("6791")));
+			log("############################################get Test: " + String.valueOf(addressList.get("6790")));
+			log("############################################get Test: " + String.valueOf(addressList.get("6792")));
+			log("############################################get Test: " + String.valueOf(addressList.get("6789")));
+			log("############################################get Test2: " + addressList.keySet());
 			success = proxy.OpenFridge(userID,addressList.get(String.valueOf(userID)));
+			log("###########################################SUCCESS???: " + success);
 			//result = proxy.getContents();
 			client.close();
 		}
 		catch(Exception e){
-			
+			log("############################################UNCAUGHT EXCEPTION: " + e.getMessage());
 		}
 		if(success){
 			return IP.getIPStr();
