@@ -98,6 +98,7 @@ import domotics.NetAddress;
 					}
 					DecimalFormat df = new DecimalFormat("#.##");
 					System.out.println(df.format(temperature));
+					log("COUNTER : " + counter);
 					System.out.println(df.format(counter));
 					//log("temperature: " + temperature);
 					proxy.UpdateTemperature(temperature);

@@ -27,7 +27,7 @@ import asg.cliche.ShellFactory;
 
 public class UserClient extends ElectableClient implements User{
 	private Server server = null;
-	private NetAddress ServerID = null;
+	private NetAddress serverAddress = null;
 	private String Name = "Foo";
 	private NetAddress OpenFridgeID = null;
 	private Thread serverThread = null;
@@ -37,7 +37,7 @@ public class UserClient extends ElectableClient implements User{
 	//Map<Integer,SimpleEntry<CharSequence,Boolean>> users = null;
 	
 	UserClient(NetAddress server, String name, NetAddress myAddr){
-		ServerID = server;
+		serverAddress = server;
 		Name = name;
 		SelfID = myAddr;
 	}
@@ -97,7 +97,7 @@ public class UserClient extends ElectableClient implements User{
 			return;
 		}
 		try{
-			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerID.getIP(),ServerID.getPort()));
+			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerIP,ServerID));
 			Electable proxy = (Electable) SpecificRequestor.getClient(Electable.class, client);
 			SelfID.setPort(proxy.ConnectUser(Name,SelfID.getIPStr()));
 			client.close();
@@ -123,7 +123,7 @@ public class UserClient extends ElectableClient implements User{
 			return;
 		}
 		try{
-			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerID.getIP(),ServerID.getPort()));
+			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerIP,ServerID));
 			Electable proxy = (Electable) SpecificRequestor.getClient(Electable.class, client);
 			proxy.LeaveHouse(SelfID.getPort());
 			client.close();
@@ -149,7 +149,7 @@ public class UserClient extends ElectableClient implements User{
 			return "You are not connected";
 		}
 		try{
-			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerID.getIP(),ServerID.getPort()));
+			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerIP,ServerID));
 			Electable proxy = (Electable) SpecificRequestor.getClient(Electable.class, client);
 			proxy.Switch(ID);
 			client.close();
@@ -191,10 +191,11 @@ public class UserClient extends ElectableClient implements User{
 		if (server == null){
 			return "You are not connected";
 		}
+		log("##############################################################SERVERID: " + serverAddress.getPort());
 		String result = "";
 		Map<CharSequence, Boolean> Servers = new HashMap<CharSequence,Boolean>();
 		try{
-			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerID.getIP(),ServerID.getPort()));
+			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerIP,ServerID));
 			Electable proxy = (Electable) SpecificRequestor.getClient(Electable.class, client);
 			Servers = proxy.GetServers();
 			client.close();
@@ -224,7 +225,7 @@ public class UserClient extends ElectableClient implements User{
 		String result = "";
 		Map<CharSequence, Boolean> Users = new HashMap<CharSequence,Boolean>();
 		try{
-			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerID.getIP(),ServerID.getPort()));
+			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerIP,ServerID));
 			Electable proxy = (Electable) SpecificRequestor.getClient(Electable.class, client);
 			Users = proxy.GetUsers();
 			client.close();
@@ -253,7 +254,7 @@ public class UserClient extends ElectableClient implements User{
 		}
 		Map<CharSequence, Boolean> lights = new HashMap<CharSequence,Boolean>();
 		try{
-			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerID.getIP(),ServerID.getPort()));
+			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerIP,ServerID));
 			Electable proxy = (Electable) SpecificRequestor.getClient(Electable.class, client);
 			lights = proxy.GetLights();
 			client.close();
@@ -288,7 +289,7 @@ public class UserClient extends ElectableClient implements User{
 		String result = "It is ";
 		Double Temperature = 0.0;
 		try{
-			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerID.getIP(),ServerID.getPort()));
+			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerIP,ServerID));
 			Electable proxy = (Electable) SpecificRequestor.getClient(Electable.class, client);
 			Temperature = proxy.GetTemperature();
 			client.close();
@@ -313,7 +314,7 @@ public class UserClient extends ElectableClient implements User{
 		}
 		List<Double> Temperature = null;
 		try{
-			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerID.getIP(),ServerID.getPort()));
+			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerIP,ServerID));
 			Electable proxy = (Electable) SpecificRequestor.getClient(Electable.class, client);
 			Temperature = proxy.GetTemperatureHistory();
 			client.close();
@@ -343,11 +344,11 @@ public class UserClient extends ElectableClient implements User{
 			System.out.println("You are not connected");
 			return null;
 		}
-		log("Getting fridges from " + ServerID.getIPStr() + " " + ServerID.getPort());
+		log("Getting fridges from " + serverAddress.getIPStr() + " " + serverAddress.getPort());
 		String result = "";
 		Map<CharSequence, List<CharSequence>> fridges = new HashMap<CharSequence, List<CharSequence>>();// = new List<Integer>();
 		try{
-			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerID.getIP(),ServerID.getPort()));
+			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerIP,ServerID));
 			Electable proxy = (Electable) SpecificRequestor.getClient(Electable.class, client);
 			fridges = proxy.GetFridges();
 			client.close();
@@ -379,7 +380,7 @@ public class UserClient extends ElectableClient implements User{
 		//List<Integer> fridges = new Vector<Integer>();// = new List<Integer>();
 		CharSequence success = "";
 		try{
-			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerID.getIP(),ServerID.getPort()));
+			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerIP,ServerID));
 			Electable proxy = (Electable) SpecificRequestor.getClient(Electable.class, client);
 			success = proxy.ConnectUserToFridge(SelfID.getPort(), fridgeID);
 			client.close();
@@ -410,7 +411,6 @@ public class UserClient extends ElectableClient implements User{
 			} catch(IOException e){
 				System.err.println("Error connecting to Fridge");
 				e.printStackTrace(System.err);
-				System.exit(1);
 			}
 		}
 		return null;

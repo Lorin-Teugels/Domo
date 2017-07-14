@@ -129,6 +129,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		if(OwnID == _electedID){
 			System.out.println("You have won the elections and will become the server");
 			stop();
+			
 			for(String key: clients.keySet()){
 				for(Integer ID: clients.get(key)){
 					if(ID == OwnID){
@@ -537,12 +538,17 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		pingingobject = new pinger(this);
 		PingingEveryone = new Thread(pingingobject);
 		PingingEveryone.start();
-		TimerCounter timerObj = new TimerCounter(this);
-		TimeKeeper = new Thread(timerObj);
-		TimeKeeper.start();
+
 		java.util.Date now = new java.util.Date();
 		synctimertask = new SyncTimerTask();
 		syncTimer.schedule(synctimertask, now , COUNTDOWN);
+		/*
+		 * TODO function that takes average of current counters of thermostat
+		*/
+		ThermostatCounter = 0;
+		TimerCounter timerObj = new TimerCounter(this);
+		TimeKeeper = new Thread(timerObj);
+		TimeKeeper.start();
 		
 		try{
 			server.join();
@@ -1111,39 +1117,55 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		if(! connected){
 			return;
 		}
-		double average = ThermostatCounter;
-		average = average/(counterlist.size()+1);
-		double Passedctr = 1; //amount of times the average was counted in.
-		for(int i =0; i < counterlist.size(); i++){
-			if(Math.abs((average*(counterlist.size()+1)) - counterlist.elementAt(i)) > epsilon){
-				continue;
+		if(counterlist.size() != 0){
+			double average = ThermostatCounter;
+			average = average/(counterlist.size()+1);
+			double passedctr = 1; //amount of times the average was counted in.
+			double divider = counterlist.size()+1;
+			if(ThermostatCounter == 0){
+				average = 0;
+				passedctr = 0;
+				divider -= 1;
 			}
-			Passedctr ++;
-			average += counterlist.elementAt(i)/(counterlist.size()+1);
-		}
-		average = average * ((counterlist.size()+1)/Passedctr);
-		connected = false;
-		int indexctr = -1;
-		if(copy.clients.get("thermostat").size() > 0){
-			for(Integer key: copy.clients.get("thermostat")){
-				indexctr += 1;
-				NetAddress IP = new NetAddress(key,(String)copy.addressList.get(key.toString()));
-				try{
-					Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
-					Thermostat proxy = (Thermostat) SpecificRequestor.getClient(Thermostat.class, client);
-					double adjustment = average - counterlist.elementAt(indexctr);
-					proxy.SetTime(adjustment);				
-					client.close();
-					connected = true;
-				}
-				catch(IOException e){
+			
+			for(int i =0; i < counterlist.size(); i++){
+				if(Math.abs(average*divider - counterlist.elementAt(i)) > epsilon && average != 0){
 					continue;
 				}
-				
-			}
-		}
-		ThermostatCounter = average;
+				passedctr ++;
+				average += counterlist.elementAt(i)/divider;
 
+			}
+			if(passedctr != 0){
+				average = average * (divider/passedctr);
+			}
+
+			connected = false;
+			int indexctr = -1;
+			if(copy.clients.get("thermostat").size() > 0){
+				for(Integer key: copy.clients.get("thermostat")){
+					indexctr += 1;
+					NetAddress IP = new NetAddress(key,(String)copy.addressList.get(key.toString()));
+					try{
+						Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
+						Thermostat proxy = (Thermostat) SpecificRequestor.getClient(Thermostat.class, client);
+						double adjustment = average - counterlist.elementAt(indexctr);
+						proxy.SetTime(adjustment);				
+						client.close();
+						connected = true;
+					}
+					catch(IOException e){
+						continue;
+					}
+					
+				}
+			}
+			ThermostatCounter = average;
+			return;
+		}
+
+		ThermostatCounter = 0;
+		
 
 	}
 	public class ClientCopy{
@@ -1206,7 +1228,8 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 					
 					for(int n = 0; n < timesCounter; n++){
 						Thread.sleep(1000);
-						ThermostatCounter += 1;
+						if(ThermostatCounter != 0)
+								ThermostatCounter += 1;
 	
 					}
 					owner.CompareTime();

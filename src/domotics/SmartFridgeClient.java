@@ -27,7 +27,7 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 	private boolean Open = false;
 	public NetAddress CurrentuserID = null;
 	private Thread serverThread = null;
-	private Thread Pinginguser = new Thread(new clientpinger(this));
+	private Thread Pinginguser;
 
 	//Map<String,Set<Integer> > clients = null;
 	//Map<Integer,SimpleEntry<CharSequence,Boolean>> users = null;
@@ -89,8 +89,10 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 		
 		public void run(){
 			//ptr.CurrentuserID;
+			stop = false;
 			while(! stop){
 				missescounter++;
+				log("######################################################### PINGING CLIENT");
 				try{
 					
 				Thread.sleep(sleeper);
@@ -98,24 +100,29 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 				}
 				
 				catch(InterruptedException e){}
-				try{
-					Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ptr.CurrentuserID.getIP(),ptr.CurrentuserID.getPort()));
-					UserClient proxy = (UserClient) SpecificRequestor.getClient(UserClient.class, client);
-
-					if(proxy.IsAlive(ServerIP,ServerID.getPort())){
-						missescounter--;
+				if(ptr.Open){
+					try{
+						Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ptr.CurrentuserID.getIP(),ptr.CurrentuserID.getPort()));
+						UserClient proxy = (UserClient) SpecificRequestor.getClient(UserClient.class, client);
+	
+						if(proxy.IsAlive(ServerIP,ServerID.getPort())){
+							missescounter--;
+						}
+						client.close();
 					}
-					client.close();
+					catch(IOException e){}
+					if(missescounter >= missesallowed){
+						stop = true;
+						ptr.CloseFridge(ptr.CurrentuserID.getPort());
+						
+					}
 				}
-				catch(IOException e){}
-				if(missescounter >= missesallowed){
+				else{
 					stop = true;
-					ptr.CloseFridge(ptr.CurrentuserID.getPort());
-					
 				}
 			}
 		}
-		
+				
 	}
 	
 	@Override
@@ -133,6 +140,7 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 		//Vector<String> allContents = this.contents;
 		if(this.Open == false){
 			this.Open = true;
+			this.Pinginguser = new Thread(new clientpinger(this));
 			this.Pinginguser.start();
 		}
 		else{
@@ -185,6 +193,7 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 		if(this.CurrentuserID.getPort() == UserID){
 			this.Open= false;
 			this.CurrentuserID = null;
+
 		}
 		return null;
 	}
