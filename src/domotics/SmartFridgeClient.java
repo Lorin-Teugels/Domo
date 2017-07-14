@@ -178,7 +178,6 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 					} catch(IOException e){
 						System.err.println("Error connecting to server");
 						e.printStackTrace(System.err);
-						System.exit(1);
 					}
 				}
 			}

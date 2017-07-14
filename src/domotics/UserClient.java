@@ -443,7 +443,6 @@ public class UserClient extends ElectableClient implements User{
 			} catch(IOException e){
 				System.err.println("Error connecting to Fridge");
 				e.printStackTrace(System.err);
-				System.exit(1);
 			}
 		}
 		return null;

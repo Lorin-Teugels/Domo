@@ -159,7 +159,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		HashMap<CharSequence,Map<CharSequence,Boolean>> userlist = new HashMap<>(_users);
 		clients.clear();
 		for(CharSequence key: clientlist.keySet()){
-			clients.put(String.valueOf(key), new HashSet<>(clientlist.get(key)) );
+			clients.put(key.toString(), new HashSet<>(clientlist.get(key)) );
 
 		}
 		
@@ -236,7 +236,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			try{
 				CharSequence tempchain = Integer.toString(nextInChain);
 				log("addresslist: " + addressList.size() );
-				NetAddress IP = new NetAddress(nextInChain, (String)addressList.get( tempchain));
+				NetAddress IP = new NetAddress(nextInChain, addressList.get(tempchain).toString());
 				client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
 				Electable.Callback proxy = (Electable.Callback) SpecificRequestor.getClient(Electable.Callback.class, client);
 				if(OwnID > LastID){
@@ -292,7 +292,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		
 		Transceiver client = null;
 		try{
-			NetAddress IP = new NetAddress(nextInChain,(String)(addressList.get(Integer.toString(nextInChain))));
+			NetAddress IP = new NetAddress(nextInChain,(addressList.get(Integer.toString(nextInChain))).toString());
 			client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
 			Electable.Callback proxy = (Electable.Callback) SpecificRequestor.getClient(Electable.Callback.class, client);
 			proxy.elected(_ElectedID, nextInChain);
@@ -354,7 +354,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 					Transceiver client = null;
 					try{
 						// NetAddress IP = new NetAddress(ID,String.valueOf(addressList.get(ID.toString())));
-						NetAddress IP = new NetAddress(ID,(String)(addressList.get(ID.toString())));
+						NetAddress IP = new NetAddress(ID,addressList.get(ID.toString()).toString());
 						if(IP.getIP() == null){
 							continue;
 						}
@@ -426,7 +426,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 						}
 						Transceiver client = null;
 						try{
-							NetAddress IP = new NetAddress(ID,(String)(addressList.get(ID.toString())));
+							NetAddress IP = new NetAddress(ID,addressList.get(ID.toString()).toString());
 							log("ip: " + IP);
 							if(IP.getIP() == null){
 								continue;
@@ -678,7 +678,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			throw new AvroRemoteException("Exist");
 		}
 		
-		NetAddress IP = new NetAddress(lightID,(String)addressList.get(String.valueOf(lightID)));
+		NetAddress IP = new NetAddress(lightID,addressList.get(String.valueOf(lightID)).toString());
 		if(IP.getIP() == null){
 			throw new AvroRemoteException("IP PROBLEM");
 		}
@@ -702,7 +702,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			result.put(key, ValueList);
 			for(Integer ID: clients.get(key)){
 				try{
-					NetAddress IP = new NetAddress(ID,(String)addressList.get(String.valueOf(ID)));
+					NetAddress IP = new NetAddress(ID,addressList.get(String.valueOf(ID)).toString());
 					if(IP.getIP() == null){
 						continue;
 					}
@@ -745,7 +745,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		Map<CharSequence, Boolean> result = new HashMap<CharSequence, Boolean>();
 		for(Integer ID: clients.get("server")){
 			boolean connected = true;
-			NetAddress IP = new NetAddress(ID,(String)addressList.get(ID.toString()));
+			NetAddress IP = new NetAddress(ID,addressList.get(ID.toString()).toString());
 			if(IP.getIP() == null){
 				continue;
 			}
@@ -781,7 +781,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		}
 		for(Integer ID: clients.get("lights")){
 			boolean on;
-			NetAddress IP = new NetAddress(ID,(String)addressList.get(ID.toString()));
+			NetAddress IP = new NetAddress(ID,addressList.get(ID.toString()).toString());
 			if(IP.getIP() == null){
 				continue;
 			}
@@ -842,7 +842,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			return "";
 		}
 		boolean success = false;
-		NetAddress IP = new NetAddress(fridge,(String)addressList.get(fridge.toString()));
+		NetAddress IP = new NetAddress(fridge,addressList.get(fridge.toString()).toString());
 		if(IP.getIP() == null){
 			log("###########################################NULLIP?????");
 			return "";
@@ -880,7 +880,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			return result;
 		}
 		for(Integer ID: clients.get("fridges")){
-			NetAddress IP = new NetAddress(ID,(String)(addressList.get(ID.toString())));
+			NetAddress IP = new NetAddress(ID,addressList.get(ID.toString()).toString());
 			if(IP.getIP() == null){
 				continue;
 			}
@@ -901,7 +901,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 	@Override
 	public Void FridgeIsEmpty(int fridgeID) throws AvroRemoteException {
 		for(Integer ID: clients.get("users")){
-			NetAddress IP = new NetAddress(ID,(String)addressList.get(ID.toString()));
+			NetAddress IP = new NetAddress(ID,addressList.get(ID.toString()).toString());
 			if(IP.getIP() == null){
 				continue;
 			}
@@ -934,7 +934,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			if(users.get(ID).getKey()==username){
 				continue;
 			}
-			NetAddress IP = new NetAddress(ID,(String)addressList.get(ID.toString()));
+			NetAddress IP = new NetAddress(ID,addressList.get(ID.toString()).toString());
 			if(IP.getIP() == null){
 				continue;
 			}
@@ -953,7 +953,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 	
 	private void NotifyEnter(CharSequence username){
 		for(Integer ID: clients.get("users")){
-			NetAddress IP = new NetAddress(ID,(String)addressList.get(ID.toString()));
+			NetAddress IP = new NetAddress(ID,addressList.get(ID.toString()).toString());
 			if(IP.getIP() == null){
 				continue;
 			}
@@ -973,7 +973,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 	private void startSaving(){
 		log("start Saving");
 		for(Integer light: clients.get("lights") ){
-			NetAddress IP = new NetAddress(light,(String)addressList.get(light.toString()));
+			NetAddress IP = new NetAddress(light,addressList.get(light.toString()).toString());
 			if(IP.getIP() == null){
 				continue;
 			}
@@ -994,7 +994,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		List<Integer> toTurnOn = new Vector<Integer>(SavedLights);
 		SavedLights.clear();
 		for(Integer light: toTurnOn){
-			NetAddress IP = new NetAddress(light,(String)addressList.get(light.toString()));
+			NetAddress IP = new NetAddress(light,addressList.get(light.toString()).toString());
 			if(IP.getIP() == null){
 				continue;
 			}
@@ -1068,7 +1068,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		boolean connected = false;
 		
 		for(Integer key: clients.get("thermostat")){
-			NetAddress IP = new NetAddress(key,(String)addressList.get(key.toString()));
+			NetAddress IP = new NetAddress(key,addressList.get(key.toString()).toString());
 			try{
 				Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
 				Thermostat proxy = (Thermostat) SpecificRequestor.getClient(Thermostat.class, client);
@@ -1093,7 +1093,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		boolean connected = false;
 		
 		for(Integer key: clients.get("thermostat")){
-			NetAddress IP = new NetAddress(key,(String)addressList.get(key.toString()));
+			NetAddress IP = new NetAddress(key,addressList.get(key.toString()).toString());
 			try{
 				Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
 				Thermostat proxy = (Thermostat) SpecificRequestor.getClient(Thermostat.class, client);
@@ -1122,7 +1122,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		ClientCopy copy = this.Copy(); 
 		if(copy.clients.get("thermostat").size() != 0){
 			for(Integer key: copy.clients.get("thermostat")){
-				NetAddress IP = new NetAddress(key,(String)copy.addressList.get(key.toString()));
+				NetAddress IP = new NetAddress(key,copy.addressList.get(key.toString()).toString());
 				try{
 					Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
 					Thermostat proxy = (Thermostat) SpecificRequestor.getClient(Thermostat.class, client);
@@ -1178,7 +1178,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			if(copy.clients.get("thermostat").size() > 0){
 				for(Integer key: copy.clients.get("thermostat")){
 					indexctr += 1;
-					NetAddress IP = new NetAddress(key,(String)copy.addressList.get(key.toString()));
+					NetAddress IP = new NetAddress(key,copy.addressList.get(key.toString()).toString());
 					try{
 						Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
 						Thermostat proxy = (Thermostat) SpecificRequestor.getClient(Thermostat.class, client);
