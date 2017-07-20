@@ -29,40 +29,48 @@ import java.util.AbstractMap.SimpleEntry;
 import protocols.avro.*;
 import domotics.NetAddress;
 
+/*
+ * Class from which all possible servers (users, servers and fridges) inherit the server methods.
+ * Contains code to hold elections, sync server data, and to decide when server timed out.
+ * Contains the information required to become server (what clients are online, and what their addresses are).
+ */
 public abstract class ElectableClient extends Client implements Electable, Runnable {
+	// TODO stand-in server can not register new clients, possibly impossible without multicast in current implementation
 	public static final long COUNTDOWN = 4000;
 	public static final long ELECTIONTIMEOUT = 6000;
 	public static final int UPPERBOUND = 64*1024 + 1;
+	
+	public Integer ServerID = 6789;
+	public String ServerIP = "127.0.0.1";
+	public Integer OriginalServerID = 6789;
+	public String OriginalServerIP = "127.0.0.1";
 	
 	private Map<String,Set<Integer> > clients = new ConcurrentHashMap<String,Set<Integer> >();
 	private Object clientsLock = new Object();
 	private Map<Integer,SimpleEntry<CharSequence,Boolean>> users = new ConcurrentHashMap<Integer,SimpleEntry<CharSequence,Boolean>>();
 	private Map<CharSequence, CharSequence> addressList = new ConcurrentHashMap<CharSequence,CharSequence>();
-	private List<Integer> SavedLights = new Vector<Integer>();
+	private List<Integer> savedLights = new Vector<Integer>();
 
-	protected NetAddress SelfID = null;
-	private pinger pingingobject = null;
-	private Thread PingingEveryone = null;
-	HashMap<Integer, pinginfo> PingMap = new HashMap<Integer, pinginfo>();
+	protected NetAddress selfID = null;
+	private Pinger pingingobject = null;
+	private Thread pingingEveryone = null;
+	HashMap<Integer, Pinginfo> pingMap = new HashMap<Integer, Pinginfo>();
 	private Timer syncTimer = new Timer();
 	private SyncTimerTask synctimertask = new SyncTimerTask();
-
-	private Thread ServerThread = null;
+	private Thread serverThread = null;
 	private Timer deadservertimer = new Timer();
 	private ElectionTimerTask electiontimertask = new ElectionTimerTask();
-	public Integer ServerID = 6789;
-	public String ServerIP = "127.0.0.1";
-	public Integer OriginalServerID = 6789;
-	public String OriginalServerIP = "127.0.0.1";
 	private double temperature = 0;
 	protected Server server = null;
-	private Object ElectionLock = new Object(); 
-	private boolean ElectionBusy = false;
+	private Object electionLock = new Object(); 
+	private boolean electionBusy = false;
 	public List<Double> temperatureHistory = new ArrayList<Double>();
-	private double ThermostatCounter = 0;
-	private Thread TimeKeeper = null;
+	private double thermostatCounter = 0;
+	private Thread timeKeeper = null;
 
-
+	/* 
+	 * stops a client from being the server when the original server gets back online.
+	 */
 	public void stopserver(){
 		System.out.println("This is not a server anymore");
 		log("cancelling pinger");
@@ -139,14 +147,15 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 					}
 				}
 			}
-			ServerThread = new Thread(this);
-			ServerThread.start();
+			serverThread = new Thread(this);
+			serverThread.start();
 		}
 		else{
 			log(": stop server thread");
 		}
 	}
 	
+	//the method that copies the data the server must have, in case the server goes down
 	public Void _sync(Map<CharSequence,List<Integer> > _clients,	Map<CharSequence,Map<CharSequence,Boolean>> _users, Map<CharSequence, CharSequence> _addresses,List<Integer> _lights){
 		log("in sync; clients: "+ _clients + " users: " + _users+" addresses:"+_addresses+" lights:"+_lights);
 		Map<CharSequence, CharSequence> quickCopy = new HashMap<CharSequence, CharSequence>();
@@ -174,18 +183,13 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			SimpleEntry<CharSequence,Boolean> tempmap = new SimpleEntry<CharSequence,Boolean>(otherkey, bool);
 			users.put(newkey, tempmap);
 		}
-		log("####################################pre change addresses:  " + addressList);
-		log("|#######################################################################ADRESSLISTTEST!!!"+addressList.get("6790"));
-		//addressList.putAll(_addresses);
 		addressList = quickCopy;
-		log("|#######################################################################ADRESSLISTTEST!!!"+addressList.get("6790"));
 
-		log("####################################post change addresses:  " + addressList);
-		SavedLights = new Vector<Integer>(_lights);
+		savedLights = new Vector<Integer>(_lights);
 		return null;
 	}
 	@Override
-	public boolean election(int LastID){
+	public boolean Election(int LastID){
 		log("ENTER ELECTION");
 		try {
 	
@@ -219,14 +223,14 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		else if(LastID == OwnID){
 			// Elect myself
 			SetElected(OwnID);
-			elected(OwnID, nextInChain);
+			Elected(OwnID, nextInChain);
 			return true;
 		}
 
-		synchronized(ElectionLock) {
-			if (ElectionBusy)
+		synchronized(electionLock) {
+			if (electionBusy)
 				return false;
-			ElectionBusy = true; // set to false in finally
+			electionBusy = true; // set to false in finally
 		}
 		
 		try {
@@ -241,11 +245,11 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 				Electable.Callback proxy = (Electable.Callback) SpecificRequestor.getClient(Electable.Callback.class, client);
 				if(OwnID > LastID){
 					log("sending election "+OwnID+" to Ip: " + IP.getIP() + "," + IP.getPort());
-					proxy.election(OwnID);
+					proxy.Election(OwnID);
 				}
 				else{
 					log("sending election "+LastID+" to Ip: " + IP.getIP() + "," + IP.getPort());
-					proxy.election(LastID);
+					proxy.Election(LastID);
 				}
 	
 			}
@@ -255,8 +259,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			}
 			catch(IOException e){
 				log("exception during election: " + e);
-				//nextinchain removing <key, nextinchain> from clients
-				//TODO getbackhere
+				//nextinchain removing <key, nextinchain> from clients, in case the connection to that client has been lost
 				RemoveFromClients(_tempkey, nextInChain);
 			}
 			finally{
@@ -267,7 +270,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 				catch (IOException e){}
 			}
 		} finally {
-			ElectionBusy = false;
+			electionBusy = false;
 		}
 		
 		} finally{
@@ -278,7 +281,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 	}
 	
 	@Override
-	public boolean elected(int _ElectedID, int nextInChain){
+	public boolean Elected(int _ElectedID, int nextInChain){
 		log("ENTER ELECTED");
 		try {
 			
@@ -295,7 +298,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			NetAddress IP = new NetAddress(nextInChain,(addressList.get(Integer.toString(nextInChain))).toString());
 			client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
 			Electable.Callback proxy = (Electable.Callback) SpecificRequestor.getClient(Electable.Callback.class, client);
-			proxy.elected(_ElectedID, nextInChain);
+			proxy.Elected(_ElectedID, nextInChain);
 		}
 		catch(IOException e){
 			log("Throw in elected: " + e);
@@ -313,11 +316,17 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		}
 		return false;
 	}
-	//_________________________________________________DomoticsServer inherit methods_________________________________________________________\\
-	public class pinginfo{
+	/*
+	 * class that holds data on how many pings failed to receive a response.
+	 */
+	public class Pinginfo{
 		public int missedpings = 0;
 	}
 	
+	/*
+	 * When timer fires, synchronizes data on all active clients between electable clients.
+	 * For instance which users are in the house, or what lights are on.
+	 */
 	public class SyncTimerTask extends TimerTask{
 
 		public void run(){
@@ -363,15 +372,13 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 							log("syncing " + key + " " + ID);
 							client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
 							User proxyU = (User) SpecificRequestor.getClient(User.class, client);
-							log("FUUUUUUUUUUUUUUUUUUUUUCK: " + mapcopy.get("6790"));
-							log("FUUUUUUUUUUUUUUUUUUUUUCK: " + addressList.get("6790"));
-							proxyU._sync(clientlist, userlist,mapcopy,SavedLights);
+							proxyU._sync(clientlist, userlist,mapcopy,savedLights);
 							break;
 						case "fridges":
 							log("syncing " + key + " " + ID);
 							client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
 							SmartFridge proxyF = (SmartFridge) SpecificRequestor.getClient(SmartFridge.class,client);
-							proxyF._sync(clientlist, userlist,mapcopy,SavedLights);
+							proxyF._sync(clientlist, userlist,mapcopy,savedLights);
 							break;	
 						}
 					}
@@ -390,13 +397,18 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		}
 		
 	}
-	public class pinger implements Runnable{
+	
+	/*
+	 * Pinger object that checks what clients are online and responsive.
+	 * Calls isAlive method of clients it 'pings'.
+	 */
+	public class Pinger implements Runnable{
 		ElectableClient ptr;
 		int sleeper= 3000;
 		public boolean _run = true;
 		int threshold = 3;
 		
-		public pinger(ElectableClient electable){
+		public Pinger(ElectableClient electable){
 			ptr = electable;
 		}
 		public void stop(){
@@ -420,9 +432,9 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 					log("iD: "+ clients.get(key));
 					for(Integer ID: clients.get(key)){
 						boolean runningsmooth = false;
-						if(PingMap.get(ID) == null){
-							pinginfo newinfo = new pinginfo();
-							PingMap.put(ID, newinfo);
+						if(pingMap.get(ID) == null){
+							Pinginfo newinfo = new Pinginfo();
+							pingMap.put(ID, newinfo);
 						}
 						Transceiver client = null;
 						try{
@@ -440,7 +452,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 								break;
 							case "users":
 								User proxyU = (User) SpecificRequestor.getClient(User.class, client);
-								runningsmooth = proxyU.IsAlive(ptr.SelfID.getIPStr(), ptr.getID());
+								runningsmooth = proxyU.IsAlive(ptr.selfID.getIPStr(), ptr.getID());
 								break;
 							case "lights":
 								Light proxyL = (Light) SpecificRequestor.getClient(Light.class, client);
@@ -448,11 +460,11 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 								break;
 							case "fridges":
 								SmartFridge proxyF = (SmartFridge) SpecificRequestor.getClient(SmartFridge.class,client);
-								runningsmooth = proxyF.IsAlive(ptr.SelfID.getIPStr(), ptr.getID());
+								runningsmooth = proxyF.IsAlive(ptr.selfID.getIPStr(), ptr.getID());
 								break;
 							case "thermostat":
 								Thermostat proxyT = (Thermostat) SpecificRequestor.getClient(Thermostat.class,client);
-								runningsmooth = proxyT.IsAlive(ptr.SelfID.getIPStr(), ptr.getID());
+								runningsmooth = proxyT.IsAlive(ptr.selfID.getIPStr(), ptr.getID());
 								log("temperature: " + temperature);
 								break;
 							}
@@ -479,12 +491,12 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 							//fails++;
 							log("objectID: " + ID + " Pinger Error :" +e);
 							e.printStackTrace();
-							pinginfo missping = PingMap.get(ID);
+							Pinginfo missping = pingMap.get(ID);
 							missping.missedpings ++;
 							if(missping.missedpings >= threshold){
-								PingMap.remove(ID);
+								pingMap.remove(ID);
 								clients.get(key).remove(ID);
-								SavedLights.remove(ID);
+								savedLights.remove(ID);
 								if(clients.get(key).size() == 0){
 									if (key != "server"){
 										clients.remove(key);
@@ -506,8 +518,9 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			}
 		}
 	}
+	//starts running the server
 	public void run(){		
-		NetAddress ID = SelfID;
+		NetAddress ID = selfID;
 		if (clients.get("server") == null){
 			Set<Integer> values = new HashSet<Integer>();
 			clients.put("server", values);
@@ -534,8 +547,8 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			return;
 		}
 		clients.get("server").add(Integer.valueOf(ID.getPort()));
-		if(addressList.get(SelfID.getPort().toString()) == null)
-			addressList.put(SelfID.getPort().toString(), SelfID.getIPStr());
+		if(addressList.get(selfID.getPort().toString()) == null)
+			addressList.put(selfID.getPort().toString(), selfID.getIPStr());
 		
 		while(true) {
 			try{
@@ -553,20 +566,17 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			}
 		}
 		server.start();
-		pingingobject = new pinger(this);
-		PingingEveryone = new Thread(pingingobject);
-		PingingEveryone.start();
+		pingingobject = new Pinger(this);
+		pingingEveryone = new Thread(pingingobject);
+		pingingEveryone.start();
 
 		java.util.Date now = new java.util.Date();
 		synctimertask = new SyncTimerTask();
 		syncTimer.schedule(synctimertask, now , COUNTDOWN);
-		/*
-		 * TODO function that takes average of current counters of thermostat
-		*/
-		ThermostatCounter = 0;
+		thermostatCounter = 0;
 		TimerCounter timerObj = new TimerCounter(this);
-		TimeKeeper = new Thread(timerObj);
-		TimeKeeper.start();
+		timeKeeper = new Thread(timerObj);
+		timeKeeper.start();
 		
 		try{
 			server.join();
@@ -714,7 +724,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 						break;
 					case "users":
 						User proxyU = (User) SpecificRequestor.getClient(User.class, client);
-						proxyU.IsAlive(this.SelfID.getIPStr(), this.getID());
+						proxyU.IsAlive(this.selfID.getIPStr(), this.getID());
 						break;
 					case "lights":
 						Light proxyL = (Light) SpecificRequestor.getClient(Light.class, client);
@@ -722,11 +732,11 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 						break;
 					case "fridges":
 						SmartFridge proxyF = (SmartFridge) SpecificRequestor.getClient(SmartFridge.class,client);
-						proxyF.IsAlive(this.SelfID.getIPStr(), this.getID());
+						proxyF.IsAlive(this.selfID.getIPStr(), this.getID());
 						break;
 					case "thermostat":
 						Thermostat proxyT = (Thermostat) SpecificRequestor.getClient(Thermostat.class,client);
-						proxyT.IsAlive(this.SelfID.getIPStr(),this.getID());
+						proxyT.IsAlive(this.selfID.getIPStr(),this.getID());
 						break;
 					}
 					client.close();
@@ -798,6 +808,37 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		}
 		return result;
 	}
+	//TODO finish
+	@Override
+	public Map<CharSequence, List<Double> > GetThermostats() throws AvroRemoteException {
+		Map<CharSequence, List<Double> > result = new HashMap<CharSequence, List<Double> >();
+		if(clients.get("thermostat") == null){
+			return result;
+		}
+		for(Integer ID: clients.get("thermostat")){
+			Double temperature;
+			Double clock;
+			NetAddress IP = new NetAddress(ID,addressList.get(ID.toString()).toString());
+			if(IP.getIP() == null){
+				continue;
+			}
+			try{
+				Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
+				Thermostat proxy = (Thermostat) SpecificRequestor.getClient(Thermostat.class, client);
+				temperature = proxy.GetTemperature();
+				clock = proxy.GetTime();
+				client.close();
+			}
+			catch(IOException e){
+				continue;
+			}
+			List<Double> timeAndClock = new ArrayList<Double>();
+			timeAndClock.add(temperature);
+			timeAndClock.add(clock);
+			result.put(ID.toString(), timeAndClock);
+		}
+		return result;
+	}
 
 	@Override
 	public Void LeaveHouse(int userID) throws AvroRemoteException {
@@ -824,48 +865,34 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 	
 	@Override
 	public CharSequence ConnectUserToFridge(int userID, int fridgeID) throws AvroRemoteException {
-		log("######################INCONNECTUSER TO FRIDGE: User: " + userID + ",Fridge: " + fridgeID);
 		if(clients.get("fridges") == null){
-			log("####################################################################################DAFUQ");
 			return "";
 		}
 		Integer fridge = null;
 		for(Integer frID: clients.get("fridges")){
 			if(frID == fridgeID){
-				log("###########################################fridgeID: " + frID);
 				fridge = frID;
 			}
 		}
 		
 		if(fridge == null){
-			log("###########################################NULLFRIDGE???");
 			return "";
 		}
 		boolean success = false;
 		NetAddress IP = new NetAddress(fridge,addressList.get(fridge.toString()).toString());
 		if(IP.getIP() == null){
-			log("###########################################NULLIP?????");
 			return "";
 		}
 		try{
 			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
-			log("###########################################PASSASL");
 			SmartFridge proxy = (SmartFridge) SpecificRequestor.getClient(SmartFridge.class, client);
-			log("###########################################PASRequestor");
-			log("###########################################ARguments: user:" + userID + ", addresses: " + addressList );
-			log("###########################################valueOftest: " + String.valueOf(userID));
-			log("############################################get Test: " + String.valueOf(addressList.get("6791")));
-			log("############################################get Test: " + String.valueOf(addressList.get("6790")));
-			log("############################################get Test: " + String.valueOf(addressList.get("6792")));
-			log("############################################get Test: " + String.valueOf(addressList.get("6789")));
-			log("############################################get Test2: " + addressList.keySet());
+
 			success = proxy.OpenFridge(userID,addressList.get(String.valueOf(userID)));
-			log("###########################################SUCCESS???: " + success);
 			//result = proxy.getContents();
 			client.close();
 		}
 		catch(Exception e){
-			log("############################################UNCAUGHT EXCEPTION: " + e.getMessage());
+			log("UNCAUGHT EXCEPTION: " + e.getMessage());
 		}
 		if(success){
 			return IP.getIPStr();
@@ -982,7 +1009,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 				Light proxy = (Light) SpecificRequestor.getClient(Light.class, client);
 				if(proxy.GetLightState()){
 					proxy.LightSwitch();
-					SavedLights.add(light);
+					savedLights.add(light);
 				}
 			} catch (Exception e){
 				continue;
@@ -991,8 +1018,8 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 	}
 	
 	private void undoSavings() {
-		List<Integer> toTurnOn = new Vector<Integer>(SavedLights);
-		SavedLights.clear();
+		List<Integer> toTurnOn = new Vector<Integer>(savedLights);
+		savedLights.clear();
 		for(Integer light: toTurnOn){
 			NetAddress IP = new NetAddress(light,addressList.get(light.toString()).toString());
 			if(IP.getIP() == null){
@@ -1009,14 +1036,16 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		
 	}
 	
-	//__________________________________________________________SmartFridge inherit_______________________________________________________________\\
+	/*
+	 * When server dies, calls election for new server.
+	 * Implements Roberts-Chang algorithm.
+	 */
 	public class ElectionTimerTask extends TimerTask{
 		
 		public void run(){
-			//robert chang yey
 			log("Server dead");
 			clients.remove("server");
-			election(0);
+			Election(0);
 			
 			standby(ELECTIONTIMEOUT);
 
@@ -1033,16 +1062,20 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		this.electiontimertask.cancel();
 		log("Standing down");
 	}
+	
+	/*
+	 * Pings original server to check when it comes back online.
+	 */
 	public void pingserver(){
 		if(!this.getName().equalsIgnoreCase("server")){
 			try{
 				log("trying to ping server " + OriginalServerID);
 				Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(OriginalServerIP,OriginalServerID));
 				Electable proxy = (Electable) SpecificRequestor.getClient(Electable.class, client);
-				if(proxy.IsAlive(this.SelfID.getIPStr(), this.getID())){
+				if(proxy.IsAlive(this.selfID.getIPStr(), this.getID())){
 					log("server is back!!! syncing " + OriginalServerID);
 					//resign being server, start being fridge or userclient
-					proxy._sync(this.ConvertClients(true), this.ConvertUsers(true),this.addressList ,this.SavedLights);
+					proxy._sync(this.ConvertClients(true), this.ConvertUsers(true),this.addressList ,this.savedLights);
 					this.stopserver();
 				}
 				client.close();
@@ -1072,7 +1105,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			try{
 				Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
 				Thermostat proxy = (Thermostat) SpecificRequestor.getClient(Thermostat.class, client);
-				proxy.IsAlive(SelfID.getIPStr(), SelfID.getPort());
+				proxy.IsAlive(selfID.getIPStr(), selfID.getPort());
 				client.close();
 				connected = true;
 			}
@@ -1097,7 +1130,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			try{
 				Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
 				Thermostat proxy = (Thermostat) SpecificRequestor.getClient(Thermostat.class, client);
-				proxy.IsAlive(SelfID.getIPStr(), SelfID.getPort());
+				proxy.IsAlive(selfID.getIPStr(), selfID.getPort());
 				client.close();
 				connected = true;
 			}
@@ -1112,6 +1145,8 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		
 		return temperatureHistory;
 	}
+	
+	//Berkeley algorithm for time synchronization
 	public void CompareTime(){
 		/*Parameters*/
 		double epsilon = 2;
@@ -1120,6 +1155,8 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		Vector< Double > counterlist =  new Vector<Double>();
 		boolean connected = false;
 		ClientCopy copy = this.Copy(); 
+		
+		//stage one, getting the data points of all clocks
 		if(copy.clients.get("thermostat").size() != 0){
 			for(Integer key: copy.clients.get("thermostat")){
 				NetAddress IP = new NetAddress(key,copy.addressList.get(key.toString()).toString());
@@ -1150,12 +1187,13 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 		if(! connected){
 			return;
 		}
+		//stage2 calculating average of those datapoints
 		if(counterlist.size() != 0){
-			double average = ThermostatCounter;
+			double average = thermostatCounter;
 			average = average/(counterlist.size()+1);
 			double passedctr = 1; //amount of times the average was counted in.
 			double divider = counterlist.size()+1;
-			if(ThermostatCounter == 0){
+			if(thermostatCounter == 0){
 				average = 0;
 				passedctr = 0;
 				divider -= 1;
@@ -1172,7 +1210,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			if(passedctr != 0){
 				average = average * (divider/passedctr);
 			}
-
+			//stage3 sending out corrections to clients
 			connected = false;
 			int indexctr = -1;
 			if(copy.clients.get("thermostat").size() > 0){
@@ -1193,14 +1231,18 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 					
 				}
 			}
-			ThermostatCounter = average;
+			thermostatCounter = average;
 			return;
 		}
 
-		ThermostatCounter = 0;
+		thermostatCounter = 0;
 		
 
 	}
+	
+	/*
+	 * class that contains a deep copy of the clients and addresslist maps, to keep threads from overwriting it during functions. 
+	 */
 	public class ClientCopy{
 		Map<String,Set<Integer> > clients;
 		Map<CharSequence, CharSequence> addressList;
@@ -1243,7 +1285,9 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 
 		return copy;
 	}
-	
+	/*
+	 * class that keeps the server's counter running so it can synchronize thermostat clocks.
+	 */
 	private class TimerCounter implements Runnable{
 		ElectableClient owner;
 		boolean stop = false;
@@ -1261,8 +1305,8 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 					
 					for(int n = 0; n < timesCounter; n++){
 						Thread.sleep(1000);
-						if(ThermostatCounter != 0)
-								ThermostatCounter += 1;
+						if(thermostatCounter != 0)
+								thermostatCounter += 1;
 	
 					}
 					owner.CompareTime();

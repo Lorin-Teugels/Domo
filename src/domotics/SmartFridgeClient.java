@@ -21,33 +21,30 @@ import domotics.NetAddress;
 
 
 public class SmartFridgeClient extends ElectableClient implements SmartFridge {
-	//private Server server = null;
 	private NetAddress ServerID = null;
 	private List<CharSequence> contents = new Vector<CharSequence>();
-	private boolean Open = false;
-	public NetAddress CurrentuserID = null;
+	private boolean open = false;
+	public NetAddress currentuserID = null;
 	private Thread serverThread = null;
-	private Thread Pinginguser;
+	private Thread pinginguser;
 
-	//Map<String,Set<Integer> > clients = null;
-	//Map<Integer,SimpleEntry<CharSequence,Boolean>> users = null;
-	
 	
 	SmartFridgeClient(NetAddress server, NetAddress thisAddr){
 		ServerID = server;
-		SelfID = thisAddr;
+		selfID = thisAddr;
 	}
 
-	/*public void _Sync(Map<String,Set<Integer> > _clients,Map<Integer,SimpleEntry<CharSequence,Boolean>> _users ){
-		clients = new HashMap<String,Set<Integer> >(_clients);// _clients.clone();
-		users = new HashMap<Integer,SimpleEntry<CharSequence,Boolean>>(_users);//_users.clone();
-	}*/
+
 	public int getID(){
-		return SelfID.getPort();
+		return selfID.getPort();
 	}
 	public  String getName(){
 		return "fridges";
 	}
+	
+	/*
+	 * Starts server after this fridge was elected.
+	 */
 	public class RunServer implements Runnable{
 		NetAddress ID;
 		SmartFridge ptr;
@@ -75,15 +72,17 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 		}
 	}
 	
-	
-	public class clientpinger implements Runnable{
+	/*
+	 * Class that pings client that opened the fridge, to ensure the fridge closes when user dies (priorities amirite).
+	 */
+	public class ClientPinger implements Runnable{
 		SmartFridgeClient ptr;
 		boolean stop  = false;
 		int missescounter = 0;
 		long sleeper = 3000;
 		int missesallowed = 2;
 		
-		public clientpinger(SmartFridgeClient owner){
+		public ClientPinger(SmartFridgeClient owner){
 			ptr = owner;
 		}
 		
@@ -92,7 +91,7 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 			stop = false;
 			while(! stop){
 				missescounter++;
-				log("######################################################### PINGING CLIENT");
+				log("PINGING CLIENT");
 				try{
 					
 				Thread.sleep(sleeper);
@@ -100,9 +99,9 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 				}
 				
 				catch(InterruptedException e){}
-				if(ptr.Open){
+				if(ptr.open){
 					try{
-						Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ptr.CurrentuserID.getIP(),ptr.CurrentuserID.getPort()));
+						Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ptr.currentuserID.getIP(),ptr.currentuserID.getPort()));
 						UserClient proxy = (UserClient) SpecificRequestor.getClient(UserClient.class, client);
 	
 						if(proxy.IsAlive(ServerIP,ServerID.getPort())){
@@ -113,7 +112,7 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 					catch(IOException e){}
 					if(missescounter >= missesallowed){
 						stop = true;
-						ptr.CloseFridge(ptr.CurrentuserID.getPort());
+						ptr.CloseFridge(ptr.currentuserID.getPort());
 						
 					}
 				}
@@ -138,16 +137,16 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 	public synchronized boolean OpenFridge(int UserID,CharSequence IP){
 		//Map<CharSequence, List<Integer>> AllClients = new HashMap<CharSequence, List<Integer>>();
 		//Vector<String> allContents = this.contents;
-		if(this.Open == false){
-			this.Open = true;
-			this.Pinginguser = new Thread(new clientpinger(this));
-			this.Pinginguser.start();
+		if(this.open == false){
+			this.open = true;
+			this.pinginguser = new Thread(new ClientPinger(this));
+			this.pinginguser.start();
 		}
 		else{
 			return false;
 		}
 		NetAddress userAddr = new NetAddress(UserID,String.valueOf(IP));
-		this.CurrentuserID = userAddr;
+		this.currentuserID = userAddr;
 		return true;
 	}
 	
@@ -155,7 +154,7 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 	public Void AddItem(int UserID, CharSequence item){
 		//Map<CharSequence, List<Integer>> AllClients = new HashMap<CharSequence, List<Integer>>();
 		//Vector<String> allContents = this.contents;
-		if(this.CurrentuserID.getPort() == UserID){
+		if(this.currentuserID.getPort() == UserID){
 			this.contents.add(item);
 		}
 		return null;
@@ -165,7 +164,7 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 	public Void RemoveItem(int UserID, CharSequence item){
 		//Map<CharSequence, List<Integer>> AllClients = new HashMap<CharSequence, List<Integer>>();
 		//Vector<String> allContents = this.contents;
-		if(this.CurrentuserID.getPort() == UserID){
+		if(this.currentuserID.getPort() == UserID){
 			if(contents.contains(item)){
 				contents.remove(item);
 				if(this.contents.isEmpty()){
@@ -173,7 +172,7 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 					try{
 						Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerID.getIP(),ServerID.getPort()));
 						Electable proxy = (Electable) SpecificRequestor.getClient(Electable.class, client);
-						proxy.FridgeIsEmpty(SelfID.getPort());
+						proxy.FridgeIsEmpty(selfID.getPort());
 						client.close();
 					} catch(IOException e){
 						System.err.println("Error connecting to server");
@@ -189,9 +188,9 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 	public Void CloseFridge(int UserID){
 		//Map<CharSequence, List<Integer>> AllClients = new HashMap<CharSequence, List<Integer>>();
 		//Vector<String> allContents = this.contents;
-		if(this.CurrentuserID.getPort() == UserID){
-			this.Open= false;
-			this.CurrentuserID = null;
+		if(this.currentuserID.getPort() == UserID){
+			this.open= false;
+			this.currentuserID = null;
 
 		}
 		return null;
@@ -202,8 +201,8 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 		try{
 			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ServerID.getIP(),ServerID.getPort()));
 			Electable proxy = (Electable) SpecificRequestor.getClient(Electable.class, client);
-			SelfID.setPort(proxy.ConnectFridge(SelfID.getPort(),SelfID.getIPStr()));
-			log("portandIp after connect: "+SelfID.getPort() + ":" +SelfID.getIPStr());
+			selfID.setPort(proxy.ConnectFridge(selfID.getPort(),selfID.getIPStr()));
+			log("portandIp after connect: "+selfID.getPort() + ":" +selfID.getIPStr());
 			client.close();
 		} catch(IOException e){
 			System.err.println("Error connecting to server");
@@ -211,8 +210,8 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 			System.exit(1);*/
 
 		}
-		System.out.println("You have ID: "+Integer.toString(SelfID.getPort()));
-		serverThread = new Thread(new RunServer(SelfID,this));
+		System.out.println("You have ID: "+Integer.toString(selfID.getPort()));
+		serverThread = new Thread(new RunServer(selfID,this));
 		serverThread.start();
 	}
 	
@@ -242,7 +241,7 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 
 	@Override
 	public boolean ConnectToClient(int ClientID) throws AvroRemoteException {
-		// TODO Auto-generated method stub
-		return false;
+		//unused method
+			return false;
 	}
 }

@@ -17,28 +17,25 @@ import domotics.NetAddress;
 
 	public class ThermostatClient extends SimpleClient implements Thermostat {
 	public double temperature;
-	private NetAddress SensorID;
+	private NetAddress sensorID;
 	private Integer serverID;
 	private String serverIP;
-	private Thread PingingServer;
+	private Thread pingingServer;
 	private double counter;
 	private double drift;
 	private Random rand = new Random();
 	
 	public ThermostatClient(NetAddress ServerAddr, NetAddress MyAddr){
-		this.SensorID = MyAddr;
+		this.sensorID = MyAddr;
 		this.serverID = ServerAddr.getPort();
 		this.serverIP = ServerAddr.getIPStr();
-		this.PingingServer = new Thread(new clientpinger(this));
+		this.pingingServer = new Thread(new ClientPinger(this));
 		this.counter = 0;
-		this.drift = rand.nextDouble()/4; //min = 0; max = .25
+		this.drift = rand.nextDouble()/4; //min = 0; max = .25, to create a need to synchronize counters.
 		
 	}
 
 	public void run(NetAddress serverAddress){
-		/*
-		 * TODO stand-in server can not register new processes 
-		*/
 		NetAddress ID = this.getAddress();
 		try{
 			Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(serverAddress.getIP(),serverAddress.getPort()));
@@ -57,21 +54,21 @@ import domotics.NetAddress;
 		
 	}
 	
-	public class clientpinger implements Runnable{
+	public class ClientPinger implements Runnable{
 		ThermostatClient ptr;
 		boolean stop  = false;
 		long sleeper = 3000;
 		long countertime = 1000;
 		long timesCounter = sleeper/countertime;
 		
-		public clientpinger(ThermostatClient owner){
+		//pings server to update its temperature and clocks
+		public ClientPinger(ThermostatClient owner){
 			ptr = owner;
-			//log("hello");
+			log("hello");
 			ptr.temperature = ((rand.nextDouble() + 0.5) * 10) + 10;
 		}
 		
 		public void run(){
-			//ptr.CurrentuserID;
 			while(! stop){
 
 				try{
@@ -87,7 +84,7 @@ import domotics.NetAddress;
 				catch(InterruptedException e){}
 				Transceiver client = null;
 				try{
-					//log("update: " + ptr.serverIP + ":" + ptr.serverID);
+					log("update: " + ptr.serverIP + ":" + ptr.serverID);
 					client = new SaslSocketTransceiver(new InetSocketAddress(ptr.serverIP,ptr.serverID));
 					Electable proxy = (Electable) SpecificRequestor.getClient(Electable.class, client);
 					if(rand.nextDouble()> 0.5){
@@ -100,11 +97,11 @@ import domotics.NetAddress;
 					System.out.println(df.format(temperature));
 					log("COUNTER : " + counter);
 					System.out.println(df.format(counter));
-					//log("temperature: " + temperature);
+					log("temperature: " + temperature);
 					proxy.UpdateTemperature(temperature);
 				}
 				catch(IOException e){
-					//log("Ioexception thermostat pinging"+ e);
+					log("Ioexception thermostat pinging"+ e);
 				}
 				finally{
 					try {
@@ -133,7 +130,7 @@ import domotics.NetAddress;
 		ThisSensor.serverID= info.serverAddr.getPort();
 		ThisSensor.serverIP = info.serverAddr.getIPStr();*/
 		ThisSensor.run(info.serverAddr);
-		ThisSensor.PingingServer.start();
+		ThisSensor.pingingServer.start();
 		while(true){
 			int input = 0;
 			try{
@@ -153,7 +150,7 @@ import domotics.NetAddress;
 
 	@Override
 	public int getID() {
-		return SensorID.getPort();
+		return sensorID.getPort();
 	}
 
 	@Override
@@ -163,7 +160,7 @@ import domotics.NetAddress;
 
 	@Override
 	public NetAddress getAddress() {
-		return SensorID;
+		return sensorID;
 	}
 
 	@Override

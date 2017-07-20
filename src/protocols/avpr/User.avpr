@@ -6,11 +6,11 @@
 			"request":[{"name":"Clients", "type":{"type":"map", "values": {"type":"array","items":"int"}}}, {"name":"Users", "type": {"type":"map", "values":{"type":"map", "values":"boolean"}}}, {"name":"addresses","type":{"type":"map","values":"string"}},{"name":"savedLights","type":{"type":"array","items":"int"}}],
 			"response":"null"
 		},
-		"election":{
+		"Election":{
 			"request":[{"name":"OwnID","type":"int"}],
 			"response":"boolean"
 		},
-		"elected":{
+		"Elected":{
 			"request":[{"name":"OwnID","type":"int"}, {"name":"NextID","type":"int"}],
 			"response":"boolean"
 		},

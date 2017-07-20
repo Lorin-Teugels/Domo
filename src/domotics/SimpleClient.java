@@ -10,6 +10,9 @@ import org.apache.avro.ipc.specific.SpecificResponder;
 
 import domotics.NetAddress;
 
+/*
+ * class from which all clients that cannot become servers inherit.
+ */
 public abstract class SimpleClient extends Client {
 	protected Thread serverRunning = null;
 	private Server server = null;
@@ -20,6 +23,10 @@ public abstract class SimpleClient extends Client {
 	
 	public abstract NetAddress getAddress();
 	public abstract Class getClientClass();
+	
+	/*
+	 * Thread that listens for incoming requests and function calls.
+	 */
 	public class ServerThread implements Runnable {
 		NetAddress ID;
 		SimpleClient ptr;

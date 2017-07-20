@@ -6,11 +6,14 @@ import domotics.ElectableClient;
 
 import protocols.avro.DomServer;
 import domotics.NetAddress;
-
+/*
+ * The code for the actual (original) server of the system. 
+ * Most methods inherited from ElectableClient.
+ */
 public class DomoticsServer extends ElectableClient implements DomServer {
 	
 	public int getID(){
-		return SelfID.getPort();
+		return selfID.getPort();
 	}
 	
 	public String getName(){
@@ -28,14 +31,15 @@ public class DomoticsServer extends ElectableClient implements DomServer {
 		if ( args.length > 1 ){
 			IP = args[1];
 		}
-		myServer.SelfID = new NetAddress(ID,IP);
-		if (myServer.SelfID.getIP() == null){
+		myServer.selfID = new NetAddress(ID,IP);
+		if (myServer.selfID.getIP() == null){
 			System.out.println("invalid IP");
 			System.exit(-1);
 		}
 		System.out.println("Server is starting");
 		myServer.run();
 	}
+	
 	@Override
 	public boolean IsAlive(CharSequence IPaddr, int ID){
 		return true;
