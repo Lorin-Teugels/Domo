@@ -182,7 +182,7 @@ public class UserClient extends ElectableClient implements User{
 		return result;
 	}
 	
-	//TODO finish
+
 	@Command
 	public String getThermostats(){
 		if (server == null){
@@ -200,12 +200,12 @@ public class UserClient extends ElectableClient implements User{
 			System.exit(1);
 		}
 		String result = "";
+		DecimalFormat df = new DecimalFormat("#.##");
 		for (CharSequence Key: thermostats.keySet()){
 			result  +="Thermostat"+'\t'+ Key.toString() + '\t';
-			
-			result += thermostats.get(Key).toString();
-			
-			result += "\n";
+			String temp = df.format(thermostats.get(Key).get(0));
+			String clock = df.format(thermostats.get(Key).get(1));
+			result += "temperature: " + temp + ", time: " + clock + "\n";
 		}
 		return result;		
 	}

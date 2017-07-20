@@ -103,6 +103,9 @@ import domotics.NetAddress;
 				catch(IOException e){
 					log("Ioexception thermostat pinging"+ e);
 				}
+				catch(Exception e){
+					log("uncaught exception in thermostat's pinger: " + e);
+				}
 				finally{
 					try {
 						client.close();
