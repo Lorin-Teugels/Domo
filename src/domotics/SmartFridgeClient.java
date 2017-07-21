@@ -58,13 +58,19 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 				server = new SaslSocketServer(new SpecificResponder(SmartFridge.class, ptr),new InetSocketAddress(ID.getIP(),ID.getPort()));
 			} catch(IOException e){
 				System.err.println("[error] Failed to start server");
-				e.printStackTrace(System.err);
+				exceptionLog(e);
 				System.exit(1);
+			}
+			catch(Exception e){
+				exceptionLog(e);
 			}
 			server.start();
 			try{
 				server.join();
 			} catch(InterruptedException e){}
+			catch(Exception e){
+				exceptionLog(e);
+			}
 		}
 		
 		public void stop(){
@@ -99,6 +105,9 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 				}
 				
 				catch(InterruptedException e){}
+				catch(Exception e){
+					exceptionLog(e);
+				}
 				if(ptr.open){
 					try{
 						Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ptr.currentuserID.getIP(),ptr.currentuserID.getPort()));
@@ -110,6 +119,9 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 						client.close();
 					}
 					catch(IOException e){}
+					catch(Exception e){
+						exceptionLog(e);
+					}
 					if(missescounter >= missesallowed){
 						stop = true;
 						ptr.CloseFridge(ptr.currentuserID.getPort());
@@ -176,7 +188,10 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 						client.close();
 					} catch(IOException e){
 						System.err.println("Error connecting to server");
-						e.printStackTrace(System.err);
+						exceptionLog(e);
+					}
+					catch(Exception e){
+						exceptionLog(e);
 					}
 				}
 			}
@@ -208,7 +223,11 @@ public class SmartFridgeClient extends ElectableClient implements SmartFridge {
 			System.err.println("Error connecting to server");
 			/*e.printStackTrace(System.err);
 			System.exit(1);*/
+			exceptionLog(e);
 
+		}
+		catch(Exception e){
+			exceptionLog(e);
 		}
 		System.out.println("You have ID: "+Integer.toString(selfID.getPort()));
 		serverThread = new Thread(new RunServer(selfID,this));

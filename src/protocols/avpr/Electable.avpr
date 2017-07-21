@@ -75,7 +75,7 @@
 			"response":"boolean"
 		},
 		"UpdateTemperature":{
-			"request":[{"name":"temperature", "type":"double"}],
+			"request":[],
 			"response":"null"
 		},
 		"GetTemperature":{

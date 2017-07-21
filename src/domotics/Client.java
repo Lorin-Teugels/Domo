@@ -25,6 +25,10 @@ public abstract class Client{
 		//System.err.println("[" + Thread.currentThread().getName() + "] " + this.getName() + " " + this.getID() + " says: " +s);
 	}
 	
+	public void exceptionLog(Exception e){
+		//e.printStackTrace(System.err);
+	}
+	
 	public static class clientinfo{
 		public NetAddress serverAddr;
 		public NetAddress MyAddr;

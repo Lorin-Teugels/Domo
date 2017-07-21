@@ -29,7 +29,7 @@ import domotics.NetAddress;
 		this.sensorID = MyAddr;
 		this.serverID = ServerAddr.getPort();
 		this.serverIP = ServerAddr.getIPStr();
-		this.pingingServer = new Thread(new ClientPinger(this));
+		this.pingingServer = new Thread(new ThermostatUpdater(this));
 		this.counter = 0;
 		this.drift = rand.nextDouble()/4; //min = 0; max = .25, to create a need to synchronize counters.
 		
@@ -44,7 +44,7 @@ import domotics.NetAddress;
 			client.close();
 		} catch(IOException e){
 			System.err.println("Error connecting to server");
-			e.printStackTrace(System.err);
+			exceptionLog(e);
 			System.exit(1);
 		}
 
@@ -54,7 +54,7 @@ import domotics.NetAddress;
 		
 	}
 	
-	public class ClientPinger implements Runnable{
+	public class ThermostatUpdater implements Runnable{
 		ThermostatClient ptr;
 		boolean stop  = false;
 		long sleeper = 3000;
@@ -62,7 +62,7 @@ import domotics.NetAddress;
 		long timesCounter = sleeper/countertime;
 		
 		//pings server to update its temperature and clocks
-		public ClientPinger(ThermostatClient owner){
+		public ThermostatUpdater(ThermostatClient owner){
 			ptr = owner;
 			log("hello");
 			ptr.temperature = ((rand.nextDouble() + 0.5) * 10) + 10;
@@ -70,47 +70,28 @@ import domotics.NetAddress;
 		
 		public void run(){
 			while(! stop){
-
-				try{
-					
+				try{		
 					for(int n = 0; n < timesCounter; n++){
 						Thread.sleep(countertime);
 						counter += 1 + drift;
-	
-					}
-				
-				}
-				
+					}	
+				}	
 				catch(InterruptedException e){}
-				Transceiver client = null;
-				try{
-					log("update: " + ptr.serverIP + ":" + ptr.serverID);
-					client = new SaslSocketTransceiver(new InetSocketAddress(ptr.serverIP,ptr.serverID));
-					Electable proxy = (Electable) SpecificRequestor.getClient(Electable.class, client);
-					if(rand.nextDouble()> 0.5){
-						temperature = temperature + (rand.nextDouble());
-					}
-					else{
-						temperature = temperature - (rand.nextDouble());
-					}
-					DecimalFormat df = new DecimalFormat("#.##");
-					System.out.println(df.format(temperature));
-					log("COUNTER : " + counter);
-					System.out.println(df.format(counter));
-					log("temperature: " + temperature);
-					proxy.UpdateTemperature(temperature);
-				}
-				catch(IOException e){
-					log("Ioexception thermostat pinging"+ e);
-				}
 				catch(Exception e){
-					log("uncaught exception in thermostat's pinger: " + e);
+					exceptionLog(e);
 				}
-				finally{
-					try {
-						client.close();
-					} catch (IOException|NullPointerException e) {}
+				log("update: " + ptr.serverIP + ":" + ptr.serverID);
+				if(rand.nextDouble()> 0.5){
+					temperature = temperature + (rand.nextDouble());
 				}
+				else{
+					temperature = temperature - (rand.nextDouble());
+				}
+				DecimalFormat df = new DecimalFormat("#.##");
+				System.out.println(df.format(temperature));
+				log("COUNTER : " + counter);
+				System.out.println(df.format(counter));
+				log("temperature: " + temperature);
 			}
 		}
 		

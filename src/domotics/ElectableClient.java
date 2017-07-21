@@ -39,11 +39,14 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 	public static final long COUNTDOWN = 4000;
 	public static final long ELECTIONTIMEOUT = 6000;
 	public static final int UPPERBOUND = 64*1024 + 1;
+	public static final Integer ORIGINALSERVERID = 6789;
+	public static final String ORIGINALSERVERIP = "127.0.0.1";
+	public static final int TEMPERATUREHISTORYCOUNT = 3;
 	
 	public Integer ServerID = 6789;
 	public String ServerIP = "127.0.0.1";
-	public Integer OriginalServerID = 6789;
-	public String OriginalServerIP = "127.0.0.1";
+
+
 	
 	private Map<String,Set<Integer> > clients = new ConcurrentHashMap<String,Set<Integer> >();
 	private Object clientsLock = new Object();
@@ -65,6 +68,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 	private Object electionLock = new Object(); 
 	private boolean electionBusy = false;
 	public List<Double> temperatureHistory = new ArrayList<Double>();
+	
 	private double thermostatCounter = 0;
 	private Thread timeKeeper = null;
 
@@ -99,7 +103,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			log("key = " + key);
 			if(key.equalsIgnoreCase("server") && reput == true){
 				clients.get(key).remove(this.getID());
-				clients.get(key).add(this.OriginalServerID);				
+				clients.get(key).add(this.ORIGINALSERVERID);				
 			}
 			if(key.equalsIgnoreCase("users") && reput == true && this.getName().equalsIgnoreCase("UserClient")){
 				Set<Integer> users = clients.get(key);
@@ -262,12 +266,18 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 				//nextinchain removing <key, nextinchain> from clients, in case the connection to that client has been lost
 				RemoveFromClients(_tempkey, nextInChain);
 			}
+			catch(Exception e){
+				exceptionLog(e);
+			}
 			finally{
 				try {
 					if(client != null)
 						client.close();
 				}
 				catch (IOException e){}
+				catch(Exception e){
+					exceptionLog(e);
+				}
 			}
 		} finally {
 			electionBusy = false;
@@ -284,34 +294,35 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 	public boolean Elected(int _ElectedID, int nextInChain){
 		log("ENTER ELECTED");
 		try {
+				
+			log("elected notification: LastID: " + _ElectedID + " NextInChain: " + nextInChain );
 			
-		log("elected notification: LastID: " + _ElectedID + " NextInChain: " + nextInChain );
-		
-		if(nextInChain == this.getID()) {
-			log("elected notification reached end of chain " + nextInChain);
-			return false;
-		}
-		
-		
-		Transceiver client = null;
-		try{
-			NetAddress IP = new NetAddress(nextInChain,(addressList.get(Integer.toString(nextInChain))).toString());
-			client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
-			Electable.Callback proxy = (Electable.Callback) SpecificRequestor.getClient(Electable.Callback.class, client);
-			proxy.Elected(_ElectedID, nextInChain);
-		}
-		catch(IOException e){
-			log("Throw in elected: " + e);
-		}
-		finally{
-			try {
-				if(client != null)
-					client.close();
+			if(nextInChain == this.getID()) {
+				log("elected notification reached end of chain " + nextInChain);
+				return false;
 			}
-			catch (IOException e){}
-		}
+			
+			
+			Transceiver client = null;
+			try{
+				NetAddress IP = new NetAddress(nextInChain,(addressList.get(Integer.toString(nextInChain))).toString());
+				client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
+				Electable.Callback proxy = (Electable.Callback) SpecificRequestor.getClient(Electable.Callback.class, client);
+				proxy.Elected(_ElectedID, nextInChain);
+			}
+			catch(IOException e){
+				log("Throw in elected: " + e);
+			}
+			finally{
+				try {
+					if(client != null)
+						client.close();
+				}
+				catch (IOException e){}
+			}
 		
-		} finally {
+		} 
+		finally {
 			log("LEAVE ELECTED");
 		}
 		return false;
@@ -390,7 +401,11 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 						if(client != null)
 							try {
 								client.close();
-							} catch (IOException e) {}
+							}
+						catch (IOException e) {}
+						catch (Exception e){
+							exceptionLog(e);
+						}
 					}
 				}
 			}
@@ -421,8 +436,13 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 				Thread.sleep(sleeper);
 				
 				}
-				
 				catch(InterruptedException e){}
+				try{
+					ptr.UpdateTemperature();
+				}
+				catch(Exception e){
+					exceptionLog(e);
+				}
 				pingserver();
 				int successes = 0;
 				int fails = 0;
@@ -448,7 +468,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 							switch (key) {
 							case "server":
 								DomServer proxyS = (DomServer) SpecificRequestor.getClient(DomServer.class, client);
-								runningsmooth = proxyS.IsAlive(OriginalServerIP,OriginalServerID);
+								runningsmooth = proxyS.IsAlive(ORIGINALSERVERIP,ORIGINALSERVERID);
 								break;
 							case "users":
 								User proxyU = (User) SpecificRequestor.getClient(User.class, client);
@@ -487,10 +507,13 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 								catch(IOException e2){
 									log("Warning: problem closing client after exception " + e2);
 								}
+								catch(Exception e3){
+									exceptionLog(e3);
+								}
 							}
 							//fails++;
 							log("objectID: " + ID + " Pinger Error :" +e);
-							e.printStackTrace();
+							exceptionLog(e);
 							Pinginfo missping = pingMap.get(ID);
 							missping.missedpings ++;
 							if(missping.missedpings >= threshold){
@@ -506,6 +529,9 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 									try{LeaveHouse(ID);}
 									catch(IOException woops){
 										log("User not in users,... huh?");
+									}
+									catch(Exception e3){
+										exceptionLog(e3);
 									}
 								}
 								
@@ -561,7 +587,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 				try { Thread.sleep(3000); } catch(InterruptedException e2) {}
 			} catch(IOException e){
 				System.err.println("[error] Failed to start server");
-				e.printStackTrace(System.err);
+				exceptionLog(e);
 				System.exit(1);
 			}
 		}
@@ -699,7 +725,10 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			proxy.LightSwitch();
 			client.close();
 		} catch(IOException e){
-			throw new AvroRemoteException("Connect");
+			exceptionLog(e);
+		}
+		catch( Exception e ){
+			exceptionLog(e);
 		}
 		return true;
 	}
@@ -720,7 +749,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 					switch (key) {
 					case "server":
 						DomServer proxyS = (DomServer) SpecificRequestor.getClient(DomServer.class, client);
-						proxyS.IsAlive(OriginalServerIP,OriginalServerID);
+						proxyS.IsAlive(ORIGINALSERVERIP,ORIGINALSERVERID);
 						break;
 					case "users":
 						User proxyU = (User) SpecificRequestor.getClient(User.class, client);
@@ -744,6 +773,9 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 				catch(IOException e){
 					continue;
 				}
+				catch(Exception e){
+					exceptionLog(e);
+				}
 				result.get(key).add(ID);
 			}
 		}
@@ -762,7 +794,7 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			try{
 				Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
 				DomServer proxy = (DomServer) SpecificRequestor.getClient(DomServer.class, client);
-				proxy.IsAlive(OriginalServerIP,OriginalServerID);
+				proxy.IsAlive(ORIGINALSERVERIP,ORIGINALSERVERID);
 				client.close();
 			}
 			catch(Exception e){
@@ -804,11 +836,14 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			catch(IOException e){
 				continue;
 			}
+			catch(Exception e){
+				exceptionLog(e);
+				continue;
+			}
 			result.put(ID.toString(), on);
 		}
 		return result;
 	}
-	//TODO finish
 	@Override
 	public Map<CharSequence, List<Double> > GetThermostats() throws AvroRemoteException {
 		Map<CharSequence, List<Double> > result = new HashMap<CharSequence, List<Double> >();
@@ -830,6 +865,10 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 				client.close();
 			}
 			catch(IOException e){
+				continue;
+			}
+			catch(Exception e){
+				exceptionLog(e);
 				continue;
 			}
 			List<Double> timeAndClock = new ArrayList<Double>();
@@ -921,6 +960,10 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			catch(IOException e){
 				continue;
 			}
+			catch(Exception e){
+				exceptionLog(e);
+				continue;
+			}
 		}
 		return result;
 	}
@@ -939,6 +982,10 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 				client.close();
 			}
 			catch(IOException e){
+				continue;
+			}
+			catch(Exception e){
+				exceptionLog(e);
 				continue;
 			}
 			
@@ -974,6 +1021,9 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			catch(IOException e){
 				continue;
 			}
+			catch(Exception e){
+				exceptionLog(e);
+			}
 			
 		}
 	}
@@ -992,6 +1042,9 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			}
 			catch(IOException e){
 				continue;
+			}
+			catch(Exception e){
+				exceptionLog(e);
 			}
 			
 		}
@@ -1069,11 +1122,11 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 	public void pingserver(){
 		if(!this.getName().equalsIgnoreCase("server")){
 			try{
-				log("trying to ping server " + OriginalServerID);
-				Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(OriginalServerIP,OriginalServerID));
+				log("trying to ping server " + ORIGINALSERVERID);
+				Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(ORIGINALSERVERIP,ORIGINALSERVERID));
 				Electable proxy = (Electable) SpecificRequestor.getClient(Electable.class, client);
 				if(proxy.IsAlive(this.selfID.getIPStr(), this.getID())){
-					log("server is back!!! syncing " + OriginalServerID);
+					log("server is back!!! syncing " + ORIGINALSERVERID);
 					//resign being server, start being fridge or userclient
 					proxy._sync(this.ConvertClients(true), this.ConvertUsers(true),this.addressList ,this.savedLights);
 					this.stopserver();
@@ -1086,39 +1139,51 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 			
 	}
 	@Override
-	public Void UpdateTemperature(double temp){
-		this.temperature = temp;
-		if(this.temperatureHistory.size() >=3){
-			this.temperatureHistory.remove(0);
-
-		}
-		this.temperatureHistory.add(temp);
-		return null;
-	}
-
-	@Override
-	public double GetTemperature() throws AvroRemoteException {
+	public Void UpdateTemperature(){
 		boolean connected = false;
-		
+		double temp;
+		double averagediv = clients.get("thermostat").size();
+		double averageTemperature = 0;
 		for(Integer key: clients.get("thermostat")){
 			NetAddress IP = new NetAddress(key,addressList.get(key.toString()).toString());
 			try{
 				Transceiver client = new SaslSocketTransceiver(new InetSocketAddress(IP.getIP(),IP.getPort()));
 				Thermostat proxy = (Thermostat) SpecificRequestor.getClient(Thermostat.class, client);
-				proxy.IsAlive(selfID.getIPStr(), selfID.getPort());
+				temp = proxy.GetTemperature();
 				client.close();
 				connected = true;
+				averageTemperature += temp/averagediv;
 			}
 			catch(IOException e){
 				continue;
 			}
+			catch(Exception e){
+				exceptionLog(e);
+			}
 		}
 		
 		if(! connected){
-			return 0;
+			return null;
 		}
+		this.temperature = averageTemperature;
+		if(this.temperatureHistory.size() >= TEMPERATUREHISTORYCOUNT){
+			this.temperatureHistory.remove(0);
+
+		}
+		this.temperatureHistory.add(averageTemperature);
+		return null;
+	}
+
+	@Override
+	public double GetTemperature() throws AvroRemoteException {
+		/*this.temperature = temp;
+		if(this.temperatureHistory.size() >= TEMPERATUREHISTORYCOUNT){
+			this.temperatureHistory.remove(0);
+
+		}
+		this.temperatureHistory.add(temp);*/
+		return this.temperature;
 		
-		return temperature;
 	}
 
 	@Override
@@ -1135,6 +1200,10 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 				connected = true;
 			}
 			catch(IOException e){
+				continue;
+			}
+			catch(Exception e){
+				exceptionLog(e);
 				continue;
 			}
 		}
@@ -1179,6 +1248,9 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 					connected = true;
 				}
 				catch(IOException e){
+					continue;
+				}
+				catch(Exception e){
 					continue;
 				}
 			}
@@ -1226,6 +1298,10 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 						connected = true;
 					}
 					catch(IOException e){
+						continue;
+					}
+					catch(Exception e){
+						exceptionLog(e);
 						continue;
 					}
 					
@@ -1312,6 +1388,9 @@ public abstract class ElectableClient extends Client implements Electable, Runna
 					owner.CompareTime();
 				}
 				catch(InterruptedException e){}
+				catch(Exception e){
+					exceptionLog(e);
+				}
 				
 			}
 			

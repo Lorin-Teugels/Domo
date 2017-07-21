@@ -34,7 +34,7 @@ public class LightClient extends SimpleClient implements Light{
 			client.close();
 		} catch(IOException e){
 			System.err.println("Error connecting to server");
-			e.printStackTrace(System.err);
+			exceptionLog(e);
 			System.exit(1);
 		}
 

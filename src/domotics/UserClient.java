@@ -32,6 +32,7 @@ public class UserClient extends ElectableClient implements User{
 	private NetAddress openFridgeID = null;
 	private Thread serverThread = null;
 	private RunServer serverRun = null;
+	private boolean fridgeOpen = false;
 
 	
 	UserClient(NetAddress server, String name, NetAddress myAddr){
@@ -71,13 +72,14 @@ public class UserClient extends ElectableClient implements User{
 				server = new SaslSocketServer(new SpecificResponder(User.class, ptr),new InetSocketAddress(selfID.getIP(),selfID.getPort()));
 			} catch(IOException e){
 				System.err.println("[error] Failed to start server");
-				e.printStackTrace(System.err);
+				exceptionLog(e);
 				System.exit(1);
 			}
 			server.start();
 			try{
 				server.join();
 			} catch(InterruptedException e){}
+			
 		}
 		
 		public void stop(){
@@ -87,6 +89,10 @@ public class UserClient extends ElectableClient implements User{
 	
 	@Command
 	public void EnterHouse(){
+		if(this.fridgeOpen){
+			System.out.println("You must close the fridge first!");
+			return;
+		}
 		if(serverRun != null){
 			System.out.println("Already connected");
 			return;
@@ -99,7 +105,7 @@ public class UserClient extends ElectableClient implements User{
 		} catch(Exception e){
 			System.out.println("Could not connect to the server");
 			System.err.println("Error connecting to server");
-			e.printStackTrace(System.err);
+			exceptionLog(e);
 			return;
 		}
 
@@ -113,6 +119,10 @@ public class UserClient extends ElectableClient implements User{
 	
 	@Command
 	public void LeaveHouse(){
+		if(this.fridgeOpen){
+			System.out.println("You must close the fridge first!");
+			return;
+		}
 		if(server == null){
 			System.out.println("You are not connected");
 			return;
@@ -140,6 +150,10 @@ public class UserClient extends ElectableClient implements User{
 	
 	@Command
 	public String SwitchLight(int ID){
+		if(this.fridgeOpen){
+			System.out.println("You must close the fridge first!");
+			return null;
+		}
 		if (server == null){
 			return "You are not connected";
 		}
@@ -168,6 +182,10 @@ public class UserClient extends ElectableClient implements User{
 	
 	@Command
 	public String getClients(){
+		if(this.fridgeOpen){
+			System.out.println("You must close the fridge first!");
+			return null;
+		}
 		
 		if (server == null){
 			return "You are not connected";
@@ -185,6 +203,10 @@ public class UserClient extends ElectableClient implements User{
 
 	@Command
 	public String getThermostats(){
+		if(this.fridgeOpen){
+			System.out.println("You must close the fridge first!");
+			return null;
+		}
 		if (server == null){
 			return "You are not connected";
 		}
@@ -196,8 +218,8 @@ public class UserClient extends ElectableClient implements User{
 			client.close();
 		} catch(IOException e){
 			System.err.println("Error connecting to server");
-			e.printStackTrace(System.err);
-			System.exit(1);
+			exceptionLog(e);
+			return "error connecting to server";
 		}
 		String result = "";
 		DecimalFormat df = new DecimalFormat("#.##");
@@ -212,6 +234,10 @@ public class UserClient extends ElectableClient implements User{
 	
 	@Command
 	public String getServers(){
+		if(this.fridgeOpen){
+			System.out.println("You must close the fridge first!");
+			return null;
+		}
 		if (server == null){
 			return "You are not connected";
 		}
@@ -226,7 +252,7 @@ public class UserClient extends ElectableClient implements User{
 		} catch(IOException e){
 			System.out.println("Could not connect to the server");
 			System.err.println("Error connecting to server");
-			e.printStackTrace(System.err);
+			exceptionLog(e);
 		}
 		for(CharSequence ID: Servers.keySet()){
 			result +="Server"+'\t'+  ID.toString()+'\t';
@@ -243,6 +269,10 @@ public class UserClient extends ElectableClient implements User{
 	
 	@Command
 	public String getUsers(){
+		if(this.fridgeOpen){
+			System.out.println("You must close the fridge first!");
+			return null;
+		}
 		if (server == null){
 			return "You are not connected";
 		}
@@ -254,9 +284,9 @@ public class UserClient extends ElectableClient implements User{
 			Users = proxy.GetUsers();
 			client.close();
 		} catch(IOException e){
-			System.out.println("Could not connect to the server");
 			System.err.println("Error connecting to server");
-			e.printStackTrace(System.err);
+			exceptionLog(e);
+			return "Could not connect to the server";
 		}
 		for(CharSequence ID: Users.keySet()){
 			result +="User"+'\t'+  ID.toString()+'\t';
@@ -273,6 +303,10 @@ public class UserClient extends ElectableClient implements User{
 	
 	@Command
 	public String getLights(){
+		if(this.fridgeOpen){
+			System.out.println("You must close the fridge first!");
+			return null;
+		}
 		if (server == null){
 			return "You are not connected";
 		}
@@ -284,8 +318,8 @@ public class UserClient extends ElectableClient implements User{
 			client.close();
 		} catch(IOException e){
 			System.err.println("Error connecting to server");
-			e.printStackTrace(System.err);
-			System.exit(1);
+			exceptionLog(e);
+			return "Error connecting to server";
 		}
 		String result = "";
 		for (CharSequence Key: lights.keySet()){
@@ -302,11 +336,19 @@ public class UserClient extends ElectableClient implements User{
 	
 	@Command
 	public String hello(){
+		if(this.fridgeOpen){
+			System.out.println("You must close the fridge first!");
+			return null;
+		}
 		return "Hello World";
 	}
 	
 	@Command
 	public String getTemperature(){
+		if(this.fridgeOpen){
+			System.out.println("You must close the fridge first!");
+			return null;
+		}
 		if (server == null){
 			return "You are not connected";
 		}
@@ -318,9 +360,9 @@ public class UserClient extends ElectableClient implements User{
 			Temperature = proxy.GetTemperature();
 			client.close();
 		} catch(IOException e){
-			System.out.println("Could not connect to the server");
 			System.err.println("Error connecting to server");
-			e.printStackTrace(System.err);
+			exceptionLog(e);
+			return "Could not connect to the server";
 		}
 		if (Temperature == 0.0){
 			return "No sensor connected";
@@ -333,6 +375,10 @@ public class UserClient extends ElectableClient implements User{
 	
 	@Command
 	public String getTemperatureHistory(){
+		if(this.fridgeOpen){
+			System.out.println("You must close the fridge first!");
+			return null;
+		}
 		if (server == null){
 			return "You are not connected";
 		}
@@ -343,9 +389,9 @@ public class UserClient extends ElectableClient implements User{
 			Temperature = proxy.GetTemperatureHistory();
 			client.close();
 		} catch(IOException e){
-			System.out.println("Could not connect to the server");
 			System.err.println("Error connecting to server");
-			e.printStackTrace(System.err);
+			exceptionLog(e);
+			return "Could not connect to the server";
 		}
 		if (Temperature == null){
 			return "No sensor connected";
@@ -364,6 +410,10 @@ public class UserClient extends ElectableClient implements User{
 	
 	@Command
 	public String getFridges(){
+		if(this.fridgeOpen){
+			System.out.println("You must close the fridge first!");
+			return null;
+		}
 		if (server == null){
 			System.out.println("You are not connected");
 			return null;
@@ -378,8 +428,8 @@ public class UserClient extends ElectableClient implements User{
 			client.close();
 		} catch(IOException e){
 			System.err.println("Error connecting to server");
-			e.printStackTrace(System.err);
-			System.exit(1);
+			exceptionLog(e);
+			return "Error connecting to server";
 		}
 		
 		for (CharSequence ID: fridges.keySet()){
@@ -397,10 +447,15 @@ public class UserClient extends ElectableClient implements User{
 	
 	@Command
 	public Void openFridge(int fridgeID){
+		if(this.fridgeOpen){
+			System.out.println("You must close the fridge first!");
+			return null;
+		}
 		if (server == null){
 			System.out.println("You are not connected");
 			return null;
 		}
+		this.fridgeOpen = true;
 		//List<Integer> fridges = new Vector<Integer>();// = new List<Integer>();
 		CharSequence success = "";
 		try{
@@ -410,12 +465,10 @@ public class UserClient extends ElectableClient implements User{
 			client.close();
 		} catch(IOException e){
 			System.err.println("Error connecting to Fridge");
-			e.printStackTrace(System.err);
+			exceptionLog(e);
+			this.fridgeOpen = false;
 		}
-		CharSequence testsq = "";
-		if (success== testsq){
-			System.out.println("Could not open the fridge");
-		}
+
 		this.openFridgeID = new NetAddress(fridgeID,String.valueOf(success));
 		return null;
 	}
@@ -435,7 +488,8 @@ public class UserClient extends ElectableClient implements User{
 				client.close();
 			} catch(IOException e){
 				System.err.println("Error connecting to Fridge");
-				e.printStackTrace(System.err);
+				exceptionLog(e);
+				this.fridgeOpen = false;
 			}
 			 catch(Exception e){
 				 log("UNCAUGHT EXCEPTION : " + e.getMessage());
@@ -458,7 +512,8 @@ public class UserClient extends ElectableClient implements User{
 				client.close();
 			} catch(IOException e){
 				System.err.println("Error connecting to Fridge");
-				e.printStackTrace(System.err);
+				exceptionLog(e);
+				this.fridgeOpen = false;
 			}
 		}
 		return null;
@@ -479,10 +534,11 @@ public class UserClient extends ElectableClient implements User{
 				this.openFridgeID = null;
 			} catch(IOException e){
 				System.err.println("Error connecting to Fridge");
-				e.printStackTrace(System.err);
-				System.exit(1);
+				exceptionLog(e);
+				this.fridgeOpen = false;
 			}
 		}
+		this.fridgeOpen = false;
 		return null;
 	}
 	//Command strictly for testing purposes, to enforce wait times in scripts so that the client can keep up with commands
@@ -494,6 +550,9 @@ public class UserClient extends ElectableClient implements User{
 		}
 		catch(InterruptedException e){
 			
+		}
+		catch(Exception e){
+			exceptionLog(e);
 		}
 		return null;
 	}
@@ -534,11 +593,13 @@ public class UserClient extends ElectableClient implements User{
 
 		
 		try{
+			myUser.EnterHouse();
 			ShellFactory.createConsoleShell(myUser.name, "Domotics User", myUser).commandLoop();
 		} catch(IOException e){
 			System.exit(1);
 		}
-	}
+		catch(Exception e){}
+		}
 
 	@Override
 	public Void UserEnters(CharSequence username) throws AvroRemoteException {
@@ -563,5 +624,6 @@ public class UserClient extends ElectableClient implements User{
 		System.out.print(name+"> ");
 		return null;
 	}
-
+	
+	
 }

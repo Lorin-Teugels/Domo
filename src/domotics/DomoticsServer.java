@@ -7,7 +7,7 @@ import domotics.ElectableClient;
 import protocols.avro.DomServer;
 import domotics.NetAddress;
 /*
- * The code for the actual (original) server of the system. 
+ * The code for the actual (original) controller of the system. 
  * Most methods inherited from ElectableClient.
  */
 public class DomoticsServer extends ElectableClient implements DomServer {
